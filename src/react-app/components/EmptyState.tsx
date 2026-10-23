@@ -1,4 +1,3 @@
-import React from "react";
 import { CheckCircle2, Plus } from "lucide-react";
 
 interface EmptyStateProps {
@@ -6,7 +5,7 @@ interface EmptyStateProps {
   onOpenCreate: () => void;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ filter, onOpenCreate }) => {
+export const EmptyState = ({ filter, onOpenCreate }: EmptyStateProps) => {
   const getMessage = () => {
     switch (filter) {
       case "today":
@@ -31,21 +30,21 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ filter, onOpenCreate }) 
 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6 text-center select-none">
-      <div className="size-12 rounded-full bg-[#F4F3EE] flex items-center justify-center text-[#8E8C85] mb-3 border border-[#E8E6E0]">
+      <div className="size-12 rounded-full bg-[#F4F3EE] dark:bg-[#1A1A22] flex items-center justify-center text-[#8E8C85] dark:text-[#8E8E9E] mb-3 border border-[#E8E6E0] dark:border-[#2A2A36] transition-colors">
         <CheckCircle2 className="size-6 stroke-[1.5]" />
       </div>
 
-      <h3 className="text-base font-semibold text-[#1C1C1E] tracking-tight">
+      <h3 className="text-base font-semibold text-[#1C1C1E] dark:text-[#F4F4F6] tracking-tight transition-colors">
         {title}
       </h3>
-      <p className="text-xs text-[#71717A] max-w-xs mt-1 mb-5 leading-relaxed">
+      <p className="text-xs text-[#71717A] dark:text-[#9494A0] max-w-xs mt-1 mb-5 leading-relaxed transition-colors">
         {subtitle}
       </p>
 
       <button
         type="button"
         onClick={onOpenCreate}
-        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#5E5CE6] bg-[#EEF2FF] hover:bg-[#E0E7FF] rounded-xl transition-colors"
+        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#5E5CE6] dark:text-[#9D9AF8] bg-[#EEF2FF] dark:bg-[#7C79F2]/15 hover:bg-[#E0E7FF] dark:hover:bg-[#7C79F2]/25 rounded-xl transition-colors cursor-pointer"
       >
         <Plus className="size-3.5" />
         Create a task

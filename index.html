@@ -7,6 +7,19 @@
 		<meta name="theme-color" content="#FAF9F6" />
 		<meta name="description" content="Daymark — A minimalist, elegant mobile-first task manager" />
 		<title>Daymark</title>
+		<script>
+			(function() {
+				try {
+					var saved = localStorage.getItem('daymark_theme');
+					var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+					if (saved === 'dark' || (!saved && prefersDark)) {
+						document.documentElement.classList.add('dark');
+						var meta = document.querySelector('meta[name="theme-color"]');
+						if (meta) meta.setAttribute('content', '#0D0D10');
+					}
+				} catch (e) {}
+			})();
+		</script>
 	</head>
 
 	<body>

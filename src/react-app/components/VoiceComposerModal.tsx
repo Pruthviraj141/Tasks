@@ -1,4 +1,3 @@
-import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Mic, X, Sparkles, Keyboard } from "lucide-react";
 
@@ -8,11 +7,11 @@ interface VoiceComposerModalProps {
   onOpenManualCreate: () => void;
 }
 
-export const VoiceComposerModal: React.FC<VoiceComposerModalProps> = ({
+export const VoiceComposerModal = ({
   isOpen,
   onClose,
   onOpenManualCreate,
-}) => {
+}: VoiceComposerModalProps) => {
   return (
     <AnimatePresence>
       {isOpen && (
