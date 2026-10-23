@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "cn";
 
@@ -17,16 +17,16 @@ interface Particle {
   color: string;
 }
 
-export const CircularCheckbox: React.FC<CircularCheckboxProps> = ({
+export const CircularCheckbox = ({
   checked,
   onToggle,
   className,
   disabled = false,
-}) => {
+}: CircularCheckboxProps) => {
   const [particles, setParticles] = useState<Particle[]>([]);
   const shouldReduceMotion = useReducedMotion();
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e: MouseEvent) => {
     e.stopPropagation();
     if (disabled) return;
 
@@ -82,8 +82,8 @@ export const CircularCheckbox: React.FC<CircularCheckboxProps> = ({
           "relative flex items-center justify-center size-6 rounded-full transition-all duration-200 outline-none",
           "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
           checked
-            ? "bg-[#5E5CE6] border border-[#5E5CE6] shadow-sm shadow-[#5E5CE6]/20"
-            : "border-[1.75px] border-[#C7C5BE] bg-white hover:border-[#8E8C85] active:scale-95",
+            ? "bg-[#5E5CE6] dark:bg-[#7C79F2] border border-[#5E5CE6] dark:border-[#7C79F2] shadow-sm shadow-[#5E5CE6]/20 dark:shadow-[#7C79F2]/35"
+            : "border-[1.75px] border-[#C7C5BE] dark:border-[#3E3E4A] bg-white dark:bg-[#1E1E24] hover:border-[#8E8C85] dark:hover:border-[#686878] active:scale-95",
           className
         )}
       >

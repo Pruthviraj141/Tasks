@@ -41,6 +41,31 @@
 	--radius: 0.75rem;
 }
 
+.dark {
+	/* Deep obsidian & warm charcoal palette */
+	--background: #0D0D10;
+	--foreground: #F4F4F6;
+	--card: #18181D;
+	--card-foreground: #F4F4F6;
+	--popover: #18181D;
+	--popover-foreground: #F4F4F6;
+
+	/* Refined luminous indigo-violet accent */
+	--primary: #7C79F2;
+	--primary-foreground: #FFFFFF;
+
+	--secondary: #222228;
+	--secondary-foreground: #E4E4EB;
+	--muted: #1E1E24;
+	--muted-foreground: #9494A0;
+	--accent: #23232A;
+	--accent-foreground: #F4F4F6;
+	--destructive: #F87171;
+	--border: #282830;
+	--input: #2D2D36;
+	--ring: #7C79F2;
+}
+
 @theme inline {
 	--font-heading: var(--font-sans);
 	--font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
