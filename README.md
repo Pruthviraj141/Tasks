@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
+  <a href="#-why-daymark-why-not-just-google-tasks-or-random-play-store-apps">Why Daymark</a> •
+  <a href="#-features-built-for-speed-zero-fluff">Features</a> •
   <a href="#-quick-tour--gallery">App Gallery</a> •
-  <a href="#-why-daymark">Why Daymark</a> •
-  <a href="#-features-at-a-glance">Features</a> •
   <a href="#-architecture--tech-stack">Tech Stack</a> •
   <a href="#-getting-started">Getting Started</a> •
   <a href="#-building-the-android-app">Android Build</a>
@@ -30,21 +30,74 @@
 
 ---
 
-## 💡 The Problem Daymark Solves
+## 💡 Why Daymark? (Why Not Just Google Tasks or Random Play Store Apps?)
 
-Traditional todo apps demand too much friction. When you have five thoughts in your head, opening an app, tapping through five date pickers, adjusting time sliders, and typing repetitive titles takes you out of your flow.
+Let's be completely honest: **typing your daily tasks on a tiny mobile keyboard is where productive momentum goes to die.**
 
-**Daymark re-engineers task capture around human speech:**
-1. Speak a natural sentence: *"I'll do coding now for two hours, then study DBMS tomorrow at 10 AM, and finish my assignment by 6 PM."*
-2. Daymark's backend (powered by Groq `openai/gpt-oss-20b`) processes your words in milliseconds, resolving relative dates, separate tasks, explicit durations, and deadlines.
-3. Review and edit the proposed tasks in a clean modal before anything is saved.
-4. Your tasks are stored in your **local SQLite database**—private, fast, and completely functional without an ongoing internet connection.
+You're walking, driving, walking between meetings, or your brain is buzzing with 4 different priorities. You open Google Tasks, Todoist, or Apple Reminders:
+- You tap `+`. You type the task title with your thumbs.
+- You tap the calendar icon. You scroll the date wheel.
+- You tap time. You scroll the hour wheel, then the minute wheel.
+- You tap Save.
+- *...And now you have to repeat that entire circus 3 more times for your other thoughts.*
+
+By the second task, you've completely lost your flow, got sidetracked by a notification, and put your phone down.
+
+And what about the other 99% of todo apps on the Google Play Store?
+They hit you with mandatory account signups, pop-up ads for mobile games, or slap a **$4.99/month subscription paywall** on basic essentials like recurring tasks, dark mode, or widgets. To top it off, your personal daily routine gets uploaded to big-tech cloud servers to fuel targeted ad profiles.
+
+**Daymark was built to kill that friction entirely.** One breath. Zero typing. Zero subscriptions. Zero cloud tracking.
+
+### 🥊 Google Tasks / Play Store vs. Daymark
+
+| Friction Point | Traditional Apps (Google Tasks, Todoist, Play Store) 🥱 | Daymark ⚡ |
+| :--- | :--- | :--- |
+| **Input Speed** | 10+ taps, typing on keyboard, fidgeting with date pickers | **Hold mic, speak naturally for 5 seconds.** Handled. |
+| **Multi-Task Brain Dump** | Must create tasks one... by... painful... one | **Decomposes 3-4 tasks from a single breath** in ~400ms via Groq LLM |
+| **Privacy & Cloud Sync** | Required Google/Apple login; stored on big-tech cloud servers | **100% local SQLite database.** Your schedule never leaves your device |
+| **Offline Reliability** | Spinners, sync errors, or blank screens without Wi-Fi | **Instant, zero-latency local-first.** Works in an airplane or subway |
+| **Pricing & Monetization** | Ads, "Pro" subscriptions ($48/yr), paywalled widgets | **100% free, MIT open-source, zero paywalls forever** |
+| **Focus Mode** | Basic timers that pause or drift when your screen locks | **Sleep-proof delta timer.** Lock phone, put in pocket, 0% drift |
+| **Home Screen Action** | Static lists or clunky web views | **Interactive native Android widget with 1-tap check-off & instant mic** |
+
+---
+
+## ⚡ Features Built for Speed, Zero Fluff
+
+Every single feature in Daymark was engineered around one rule: **maximum execution, zero friction.**
+
+### 🎙️ 1. Multi-Task Voice Brain-Dump (Groq GPT-OSS 20B)
+Speak naturally without robot syntax: *"Gym at 6 PM, review the pull requests for two hours, and call mom tomorrow morning at 10."* Powered by **Groq's edge inference running `openai/gpt-oss-20b`**, Daymark parses your voice in sub-second speed (~400ms), resolves start times, durations, and deadlines into separate structured cards, and lets you tap once to confirm. Supports **English, Hindi (हिंदी), Marathi (मराठी)**, and conversational Hinglish.
+
+### 🔒 2. Zero-Surveillance, 100% Local-First SQLite
+No account creation. No password reset emails. No cloud data mining. On Android, Daymark writes directly to native SQLite (`daymark_tasks.db`) via `@capacitor-community/sqlite`. On desktop web, it uses indexed local persistence. Your schedule and thoughts stay strictly on your hardware.
+
+### 🔥 3. GitHub-Style Numbered Streak & 7-Day Pulse
+Real consistency, no fake dopamine. The Pulse dashboard tracks consecutive days where you *actually completed* at least one task. Features an animated flame badge (`🔥 7`) and a 7-day visual milestone track where your consecutive streak number is embedded directly inside active completion markers. Miss a day? It resets. Earn your streak.
+
+### ⏱️ 4. Sleep-Proof, Battery-Friendly Focus Mode
+Phone screen timers that reset when your screen turns off are useless. Daymark's Focus Mode uses hardware timestamp-delta calculations (`Date.now() - sessionStart`). Start a 25-minute sprint, lock your phone, slide it into your pocket—when you pull it out, the circular SVG timer is pixel-perfect down to the millisecond without draining battery in the background.
+
+### 📱 5. Interactive Android Home-Screen Widget
+Never open the app just to tick a box. The native Android widget displays today's live tasks right on your home screen. Tap any task checkbox to complete it on the spot (syncs directly with local SQLite). Need to capture a thought? Tap the widget's mic icon to launch straight into voice capture.
+
+### 📸 6. 1080×1920 Editorial Social Story Cards
+Built-in proof of work. Turn today's completed grind into clean, aesthetic graphic cards with one click. Exports high-res PNGs in **9:16 (Instagram / Snapchat Stories)**, **1:1 (Square for WhatsApp / Threads)**, and **16:9 (X / Twitter)** with dynamic task completion rings and your active streak counter.
+
+### 📳 7. Tactile Native Haptics
+Physical sensory feedback engineered with `@capacitor/haptics`. Feel a sharp physical snap when you complete a task, a subtle pulse when voice capture kicks in, and celebration vibrations when you crush your daily goal.
+
+### 🖤 8. Midnight Charcoal & Warm Paper Themes
+No blinding white screens, and no lazy pure-black backgrounds that cause eye strain. Daymark features a custom-tuned charcoal dark mode designed specifically for contrast and OLED battery saving, paired with a warm editorial off-white paper light theme.
+
+### 📜 9. Daily Stoic Spark
+Every midnight, Daymark quietly updates with a curated philosophical or stoic insight (Marcus Aurelius, Seneca, Naval) to keep you grounded before you start executing. Zero cringe hustle bro quotes.
 
 ---
 
 ## 📱 Quick Tour & Gallery
 
-All screenshots below are captured directly from the live running Daymark application.
+Every screenshot below is captured directly from the live running Daymark application:
 
 | Dark Theme Task View | Light Theme Task View |
 | :---: | :---: |
@@ -60,33 +113,6 @@ All screenshots below are captured directly from the live running Daymark applic
 | :---: | :---: |
 | <img src="docs/assets/focus-mode.png" alt="Focus Mode" width="380" /> | <img src="docs/assets/share-card-modal.png" alt="Share Card Modal" width="380" /> |
 | *Circular animated timer ring with sleep-proof delta timing* | *Exportable PNG in Story (9:16), Square (1:1), and Twitter (16:9)* |
-
----
-
-## ✨ Features at a Glance
-
-### 🎙️ Natural Voice-to-Task Decomposition
-- **Single Sentence, Multiple Tasks**: Say *"Work on frontend for two hours, review PRs at 4 PM, and call mom tomorrow at 11 AM."* Daymark splits this into three discrete, accurately timed items.
-- **Smart Time & Date Resolving**: Distinguishes start times (*"at 3 PM"*), durations (*"for 90 minutes"*), relative offsets (*"in two hours"*), and absolute deadlines (*"by Friday 5 PM"*).
-- **Multilingual Support**: First-class support for English, Hindi (हिंदी), Marathi (मराठी), and conversational Hinglish.
-- **Human-in-the-Loop**: Preview and edit AI-suggested titles, times, and tags before committing them to your schedule.
-
-### 🔒 Local-First, Private by Design
-- **Local SQLite Storage**: Powered by `@capacitor-community/sqlite` on mobile and resilient `localStorage` on web.
-- **Zero Cloud Task Sync Required**: Your personal tasks never leave your device. Only speech transcripts are processed by the edge parser.
-- **Full Offline Reliability**: Manage, complete, filter, and track tasks with zero internet connectivity.
-
-### 🧘 Intentional Daily Workflow
-- **Quote of the Day**: Curated philosophical, stoic, and growth-oriented reflections refreshed daily.
-- **Productivity Pulse & Numbered Streak**: A GitHub/LeetCode-style 7-day timeline displaying the exact consecutive day number inside each active completion marker.
-- **Focus Mode**: A distraction-free countdown timer that calculates elapsed time via timestamp deltas (`Date.now() - sessionStart`), staying accurate even when your phone locks or sleeps.
-- **Subtle Haptics**: Native vibration pulses using `@capacitor/haptics` for task check-off and voice confirmation, with graceful web fallbacks.
-- **Shareable Daily Story Cards**: Generate crisp 1080×1920 (Instagram Story), 1080×1080 (Square / WhatsApp), or 1600×900 (X / Twitter) editorial graphic cards to celebrate daily consistency.
-
-### 📱 Android Home-Screen Widget
-- **Today's Glanceable Snapshot**: Displays your daily tasks and completion progress directly on your Android home screen.
-- **One-Tap Completion**: Check off tasks directly from the home screen; updates the widget immediately and syncs with SQLite.
-- **Instant Voice Capture**: Microphone shortcut launches Daymark straight into the listening voice composer.
 
 ---
 
