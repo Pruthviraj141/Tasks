@@ -1,4 +1,4 @@
-import { format, isToday, isTomorrow, isYesterday, parseISO } from "date-fns";
+import { format, isToday, isTomorrow, isYesterday } from "date-fns";
 
 export function formatScheduledDate(dateStr?: string, timeStr?: string): string | null {
   if (!dateStr) return null;
