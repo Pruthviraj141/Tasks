@@ -28,6 +28,9 @@ interface ISpeechRecognitionEvent {
 export class BrowserSpeechAdapter implements SpeechRecognitionService {
   private recognition: IWindowSpeechRecognition | null = null;
   private currentTranscript = "";
+  private isUserStopped = false;
+  private activeCallbacks: SpeechServiceCallbacks | null = null;
+  private activeLocale = "en-IN";
 
   private getConstructor(): (new () => IWindowSpeechRecognition) | null {
     if (typeof window === "undefined") return null;
@@ -75,45 +78,71 @@ export class BrowserSpeechAdapter implements SpeechRecognitionService {
 
     this.cancel();
     this.currentTranscript = "";
+    this.isUserStopped = false;
+    this.activeCallbacks = callbacks;
+    this.activeLocale = locale;
 
-    const recognition = new Ctor();
-    this.recognition = recognition;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = locale;
+    const startSession = () => {
+      const recognition = new Ctor();
+      this.recognition = recognition;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = this.activeLocale;
 
-    recognition.onresult = (event: ISpeechRecognitionEvent) => {
-      let fullTranscript = "";
-      for (let i = 0; i < event.results.length; i++) {
-        fullTranscript += event.results[i][0].transcript + " ";
+      recognition.onresult = (event: ISpeechRecognitionEvent) => {
+        let fullTranscript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          fullTranscript += event.results[i][0].transcript + " ";
+        }
+        const trimmed = fullTranscript.trim();
+        if (trimmed) {
+          this.currentTranscript = trimmed;
+          callbacks.onPartialResult(trimmed);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        // "no-speech" occurs during natural pauses between sentences - do not treat as fatal error
+        if (event.error === "no-speech") {
+          return;
+        }
+        console.warn("Browser SpeechRecognition error:", event.error);
+        if (this.isUserStopped) return;
+        callbacks.onError(event.error || "Speech error");
+      };
+
+      recognition.onend = () => {
+        // Keep listening across natural conversational pauses until user explicitly presses Stop
+        if (!this.isUserStopped) {
+          try {
+            startSession();
+            return;
+          } catch (err) {
+            console.warn("Speech recognition auto-restart failed:", err);
+          }
+        }
+        callbacks.onListeningChange(false);
+        callbacks.onFinalResult(this.currentTranscript);
+      };
+
+      try {
+        callbacks.onListeningChange(true);
+        recognition.start();
+      } catch (err: unknown) {
+        if (!this.isUserStopped) {
+          callbacks.onListeningChange(false);
+          const message = err instanceof Error ? err.message : "Failed to start speech";
+          callbacks.onError(message);
+          throw err;
+        }
       }
-      const trimmed = fullTranscript.trim();
-      this.currentTranscript = trimmed;
-      callbacks.onPartialResult(trimmed);
     };
 
-    recognition.onerror = (event) => {
-      console.warn("Browser SpeechRecognition error:", event.error);
-      callbacks.onError(event.error || "Speech error");
-    };
-
-    recognition.onend = () => {
-      callbacks.onListeningChange(false);
-      callbacks.onFinalResult(this.currentTranscript);
-    };
-
-    try {
-      callbacks.onListeningChange(true);
-      recognition.start();
-    } catch (err: unknown) {
-      callbacks.onListeningChange(false);
-      const message = err instanceof Error ? err.message : "Failed to start speech";
-      callbacks.onError(message);
-      throw err;
-    }
+    startSession();
   }
 
   async stop(): Promise<void> {
+    this.isUserStopped = true;
     if (this.recognition) {
       try {
         this.recognition.stop();
@@ -121,9 +150,14 @@ export class BrowserSpeechAdapter implements SpeechRecognitionService {
         // Ignore
       }
     }
+    if (this.activeCallbacks) {
+      this.activeCallbacks.onListeningChange(false);
+      this.activeCallbacks.onFinalResult(this.currentTranscript);
+    }
   }
 
   async cancel(): Promise<void> {
+    this.isUserStopped = true;
     this.currentTranscript = "";
     if (this.recognition) {
       try {
@@ -132,6 +166,9 @@ export class BrowserSpeechAdapter implements SpeechRecognitionService {
         // Ignore
       }
       this.recognition = null;
+    }
+    if (this.activeCallbacks) {
+      this.activeCallbacks.onListeningChange(false);
     }
   }
 }
