@@ -15,12 +15,16 @@ export function buildSystemPrompt(
   const tomorrowDate = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`;
 
   // Time anchors for relative offsets
+  const plusTenMinutesObj = new Date(nowObj.getTime() + 600000);
+  const plusTenMinutesTime = `${String(plusTenMinutesObj.getHours()).padStart(2, "0")}:${String(plusTenMinutesObj.getMinutes()).padStart(2, "0")}`;
+  const plusThirtyMinutesObj = new Date(nowObj.getTime() + 1800000);
+  const plusThirtyMinutesTime = `${String(plusThirtyMinutesObj.getHours()).padStart(2, "0")}:${String(plusThirtyMinutesObj.getMinutes()).padStart(2, "0")}`;
   const plusOneHourObj = new Date(nowObj.getTime() + 3600000);
   const plusOneHourTime = `${String(plusOneHourObj.getHours()).padStart(2, "0")}:${String(plusOneHourObj.getMinutes()).padStart(2, "0")}`;
   const plusTwoHoursObj = new Date(nowObj.getTime() + 7200000);
   const plusTwoHoursTime = `${String(plusTwoHoursObj.getHours()).padStart(2, "0")}:${String(plusTwoHoursObj.getMinutes()).padStart(2, "0")}`;
 
-  return `You are Daymark's Voice Task Parser.
+  return `You are Mark Your Day's Voice Task Parser.
 You convert a user's spoken task request into structured task proposals. You are not a conversational assistant.
 Never output markdown code fences (\`\`\`json or \`\`\`). Output strictly valid raw JSON.
 
@@ -28,6 +32,8 @@ Current Local Reference Context:
 - Reference Date (Today): ${refDate} (${weekday})
 - Tomorrow's Date: ${tomorrowDate}
 - Reference Time: ${refTime || "12:00:00"}
+- In 10 Minutes: ${plusTenMinutesTime}
+- In 30 Minutes: ${plusThirtyMinutesTime}
 - In 1 Hour: ${plusOneHourTime}
 - In 2 Hours: ${plusTwoHoursTime}
 - Timezone: ${timeZone}
@@ -72,10 +78,14 @@ CRITICAL RULES:
    - "code now for two hours" -> scheduledDate = "${refDate}", scheduledTime = "${refTime ? refTime.slice(0, 5) : '10:00'}", durationMinutes = 120.
    - "start coding in two hours" -> start time 2 hours from reference time (scheduledDate = "${refDate}", scheduledTime = "${plusTwoHoursTime}"), durationMinutes = null.
 
-4. Start Time vs Deadlines vs Reminders:
+4. Start Time vs Deadlines vs Reminders & Notifications:
    - "tomorrow at 11 AM" / "kal 11 baje" / "udyan sakali 11 vajta" -> scheduledDate = "${tomorrowDate}", scheduledTime = "11:00".
    - "by 6 PM" / "6 baje tak" / "6 vajeparyant" -> DEADLINE: dueDate = "${refDate}", dueTime = "18:00". Do NOT set scheduledTime or durationMinutes.
-   - Explicit reminders ("remind me to call Mom at 5 PM"): set reminderDate = "${refDate}", reminderTime = "17:00". Do NOT attach reminders to unrelated tasks in the same prompt.
+   - Explicit reminders / notification requests (e.g. "remind me to call Mom at 5 PM", "notify me in 10 minutes", "set a reminder for medicine tomorrow at 9 AM", "remind me to buy groceries"):
+     * Set reminderDate and reminderTime (24h format HH:mm).
+     * If relative ("in 10 minutes" -> reminderDate = "${refDate}", reminderTime = "${plusTenMinutesTime}"; "in 30 minutes" -> reminderDate = "${refDate}", reminderTime = "${plusThirtyMinutesTime}").
+     * If tomorrow ("tomorrow at 5 PM" -> reminderDate = "${tomorrowDate}", reminderTime = "17:00").
+     * When user asks to be reminded or notified about a task, also set scheduledDate and scheduledTime to the same date/time so it appears on their day plan.
 
 5. Ambiguity:
    - "at 10" / "10 baje" / "10 vajta" without AM/PM context: Retain the unresolved hour in "clarifications" (e.g. ["Did you mean 10 AM or 10 PM?"]) and set scheduledTime = null. Do NOT silently guess.

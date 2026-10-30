@@ -18,34 +18,56 @@ export async function parseTasksWithGroq(
   const endpoint = "https://api.groq.com/openai/v1/chat/completions";
   const model = "openai/gpt-oss-20b";
 
-  let response: Response;
-  try {
-    response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey.trim()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: request.transcript },
-        ],
-        temperature: 0.1,
-        max_tokens: 1024,
-        response_format: { type: "json_object" },
-      }),
-    });
-  } catch (err) {
-    console.error("Groq API network/fetch error:", err);
-    throw new Error("GROQ_NETWORK_ERROR");
+  let response: Response | null = null;
+  let lastErrorText = "";
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: request.transcript },
+          ],
+          temperature: 0.1,
+          max_tokens: 2048,
+        }),
+      });
+
+      if (!response.ok) {
+        lastErrorText = await response.text();
+        console.error(`Groq API error (${response.status}, attempt ${attempt + 1}):`, lastErrorText);
+        // Retry on 400 (validation/truncate), 429 (rate-limit), or 5xx server issues
+        if (attempt === 0 && (response.status === 400 || response.status === 429 || response.status >= 500)) {
+          continue;
+        }
+        throw new Error(`GROQ_API_ERROR: ${response.status}`);
+      }
+
+      break;
+    } catch (err) {
+      if (attempt === 1) {
+        if (err instanceof Error && err.message.startsWith("GROQ_API_ERROR")) {
+          throw err;
+        }
+        console.error("Groq API network/fetch error:", err);
+        throw new Error("GROQ_NETWORK_ERROR");
+      }
+    }
   }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Groq API error (${response.status}):`, errorText);
-    throw new Error(`GROQ_API_ERROR: ${response.status}`);
+  if (!response || !response.ok) {
+    throw new Error(`GROQ_API_ERROR: ${response?.status || 500}`);
   }
 
   let json: unknown;
