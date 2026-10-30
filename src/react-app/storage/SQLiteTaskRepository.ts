@@ -53,7 +53,12 @@ export class SQLiteTaskRepository implements TaskRepository {
         CREATE INDEX IF NOT EXISTS idx_tasks_isCompleted ON tasks(isCompleted);
       `;
       await this.db.execute(createSchema);
+      await this.db.run(
+        "DELETE FROM tasks WHERE id LIKE 'init-%' OR title LIKE '%Daymark design%' OR title LIKE '%sprint goals%' OR title LIKE '%Walk outside%' OR title LIKE '%verify SQLite%';",
+        []
+      ).catch(() => {});
       this.initialized = true;
+
     } catch (error) {
       console.error("Failed to initialize SQLite database", error);
       throw error;

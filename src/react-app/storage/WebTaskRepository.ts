@@ -3,55 +3,6 @@ import type { TaskRepository } from "./TaskRepository";
 
 const STORAGE_KEY = "daymark_tasks_v1";
 
-const INITIAL_TASKS: Task[] = [
-  {
-    id: "init-1",
-    title: "Review Daymark design principles & typography",
-    notes: "Ensure generous whitespace, warm off-white tones, and smooth transitions.",
-    isCompleted: false,
-    scheduledDate: new Date().toISOString().split("T")[0],
-    scheduledTime: "09:30",
-    durationMinutes: 30,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-    sortOrder: 1,
-  },
-  {
-    id: "init-2",
-    title: "Draft weekly project sprint goals",
-    notes: "Focus on core user experience and offline reliability.",
-    isCompleted: false,
-    scheduledDate: new Date().toISOString().split("T")[0],
-    scheduledTime: "11:00",
-    durationMinutes: 45,
-    dueDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-    createdAt: new Date(Date.now() - 1800000).toISOString(),
-    updatedAt: new Date(Date.now() - 1800000).toISOString(),
-    sortOrder: 2,
-  },
-  {
-    id: "init-3",
-    title: "Walk outside & disconnect for 20 minutes",
-    isCompleted: false,
-    scheduledDate: new Date().toISOString().split("T")[0],
-    durationMinutes: 20,
-    createdAt: new Date(Date.now() - 900000).toISOString(),
-    updatedAt: new Date(Date.now() - 900000).toISOString(),
-    sortOrder: 3,
-  },
-  {
-    id: "init-4",
-    title: "Install mobile dependencies & verify SQLite setup",
-    notes: "Capacitor SQLite and local storage verified.",
-    isCompleted: true,
-    completedAt: new Date(Date.now() - 600000).toISOString(),
-    scheduledDate: new Date().toISOString().split("T")[0],
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    updatedAt: new Date(Date.now() - 600000).toISOString(),
-    sortOrder: 4,
-  },
-];
-
 export class WebTaskRepository implements TaskRepository {
   private tasks: Task[] = [];
   private initialized = false;
@@ -60,19 +11,36 @@ export class WebTaskRepository implements TaskRepository {
     if (this.initialized) return;
 
     try {
+      const CLEAN_SLATE_KEY = "daymark_clean_slate_v3";
+      if (!localStorage.getItem(CLEAN_SLATE_KEY)) {
+        // One-time purge of all legacy demo / mock tasks
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(CLEAN_SLATE_KEY, "true");
+        this.tasks = [];
+        this.initialized = true;
+        return;
+      }
+
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        this.tasks = JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        // Clean out any legacy mock tasks starting with "init-"
+        this.tasks = Array.isArray(parsed)
+          ? parsed.filter((t: Task) => t && t.id && !t.id.startsWith("init-"))
+          : [];
+        this.save();
       } else {
-        this.tasks = [...INITIAL_TASKS];
+        this.tasks = [];
         this.save();
       }
     } catch (e) {
-      console.warn("Failed to read tasks from localStorage, fallback to default", e);
-      this.tasks = [...INITIAL_TASKS];
+      console.warn("Failed to read tasks from localStorage, reset to empty", e);
+      this.tasks = [];
+      this.save();
     }
     this.initialized = true;
   }
+
 
   private save(): void {
     try {
