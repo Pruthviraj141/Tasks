@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
+import { toast } from "sonner";
 import type { Task } from "../../types/task";
 
 /**
@@ -15,14 +16,114 @@ export function getNotificationId(taskId: string): number {
   return Math.abs(hash % 2147483647) || 1;
 }
 
+/**
+ * Curated, motivating titles inspired by friendly consumer apps (e.g., Zomato, Duolingo)
+ * without generic pushiness or spam.
+ */
+export const MOTIVATIONAL_TITLES = [
+  "Your future self will thank you ✨",
+  "Time to make your mark ⚡",
+  "One small step at a time 🎯",
+  "Momentum is built right here 🚀",
+  "Focus mode: activated 🌟",
+  "Clear mind, clear day ✨",
+];
+
+export const MOTIVATIONAL_TEMPLATES = [
+  (title: string) => `Time to work on ${title}. Start with one small step.`,
+  (title: string) => `Ready for ${title}? Dive in and keep your momentum going.`,
+  (title: string) => `Small actions, big outcomes. Let's tackle ${title}.`,
+  (title: string) => `A few focused minutes on ${title} will make today count.`,
+  (title: string) => `Time for ${title}. You've got everything you need to start.`,
+];
+
+export const REMINDER_CHANNEL_ID = "daymark_reminders_v2";
+
+export function generateNotificationCopy(task: Pick<Task, "id" | "title" | "notes">): {
+  title: string;
+  body: string;
+} {
+  const hash = getNotificationId(task.id);
+  const title = MOTIVATIONAL_TITLES[hash % MOTIVATIONAL_TITLES.length];
+  const templateFn = MOTIVATIONAL_TEMPLATES[hash % MOTIVATIONAL_TEMPLATES.length];
+  let body = templateFn(task.title);
+
+  if (task.notes && task.notes.trim()) {
+    body += `\n${task.notes.trim()}`;
+  }
+
+  return { title, body };
+}
+
 export class NotificationService {
   private static instance: NotificationService;
+  private channelCreated = false;
 
   static getInstance(): NotificationService {
     if (!NotificationService.instance) {
       NotificationService.instance = new NotificationService();
     }
     return NotificationService.instance;
+  }
+
+  async ensureChannelCreated(): Promise<void> {
+    if (!Capacitor.isNativePlatform() || this.channelCreated) return;
+    try {
+      await LocalNotifications.createChannel({
+        id: REMINDER_CHANNEL_ID,
+        name: "Task Reminders",
+        description: "Priority alerts and reminders for your scheduled day tasks",
+        importance: 5, // IMPORTANCE_HIGH: pops down as a heads-up banner on top of the screen (like WhatsApp)
+        visibility: 1, // VISIBILITY_PUBLIC: shows on lock screen
+        vibration: true,
+        lights: true,
+        lightColor: "#5E5CE6",
+      });
+      this.channelCreated = true;
+    } catch (err) {
+      console.warn("Failed to create notification channel:", err);
+    }
+  }
+
+  async getPermissionStatus(): Promise<"granted" | "denied" | "prompt" | "prompt-with-rationale"> {
+    if (!Capacitor.isNativePlatform()) {
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "granted") return "granted";
+        if (Notification.permission === "denied") return "denied";
+        return "prompt";
+      }
+      return "denied";
+    }
+
+    try {
+      const status = await LocalNotifications.checkPermissions();
+      return status.display;
+    } catch {
+      return "prompt";
+    }
+  }
+
+  async requestPermissions(): Promise<boolean> {
+    if (!Capacitor.isNativePlatform()) {
+      if (typeof window !== "undefined" && "Notification" in window) {
+        try {
+          if (Notification.permission === "denied") return false;
+          const perm = await Notification.requestPermission();
+          return perm === "granted";
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    }
+
+    try {
+      const status = await LocalNotifications.requestPermissions();
+      return status.display === "granted";
+    } catch (err) {
+      console.warn("Failed to request notification permissions:", err);
+      return false;
+    }
   }
 
   async checkPermissions(): Promise<boolean> {
@@ -42,10 +143,16 @@ export class NotificationService {
     }
   }
 
-  async requestPermissions(): Promise<boolean> {
+  async requestPermissionsWithRationale(): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) {
       if (typeof window !== "undefined" && "Notification" in window) {
         try {
+          if (Notification.permission === "denied") {
+            toast.info("Notifications are blocked in your browser. Enable permissions in browser settings for reminders.", {
+              duration: 4500,
+            });
+            return false;
+          }
           const perm = await Notification.requestPermission();
           return perm === "granted";
         } catch {
@@ -56,8 +163,19 @@ export class NotificationService {
     }
 
     try {
+      // Explain benefit contextually if not granted
+      toast.info("Turn on notifications so Daymark can remind you at your scheduled time.", {
+        duration: 3500,
+      });
+
       const status = await LocalNotifications.requestPermissions();
-      return status.display === "granted";
+      const granted = status.display === "granted";
+      if (!granted) {
+        toast("Reminder saved without notifications. You can enable them anytime in device settings.", {
+          duration: 4000,
+        });
+      }
+      return granted;
     } catch (err) {
       console.warn("Failed to request notification permissions:", err);
       return false;
@@ -73,36 +191,42 @@ export class NotificationService {
     const targetDate = new Date(`${task.reminderDate}T${task.reminderTime}:00`);
     const now = new Date();
 
+    // Prevent duplicate or past-due notifications
     if (isNaN(targetDate.getTime()) || targetDate.getTime() <= now.getTime()) {
       console.warn("Reminder date/time is in the past or invalid; skipping notification schedule.");
       return false;
     }
 
     const notificationId = getNotificationId(task.id);
+    const { title, body } = generateNotificationCopy(task);
 
     if (Capacitor.isNativePlatform()) {
       try {
         const hasPerm = await this.checkPermissions();
         if (!hasPerm) {
-          const granted = await this.requestPermissions();
+          const granted = await this.requestPermissionsWithRationale();
           if (!granted) {
-            console.warn("Notification permission denied by user; task saved without notification.");
             return false;
           }
         }
 
-        // Cancel previous notification if any
+        // Ensure priority heads-up channel exists
+        await this.ensureChannelCreated();
+
+        // Always cancel previous notification first to prevent duplicates
         await this.cancelReminder(task.id);
 
         await LocalNotifications.schedule({
           notifications: [
             {
               id: notificationId,
-              title: task.title,
-              body: task.notes || "Daymark Task Reminder",
-              schedule: { at: targetDate },
-              sound: undefined,
+              title,
+              body,
+              schedule: { at: targetDate, allowWhileIdle: true },
+              channelId: REMINDER_CHANNEL_ID,
               smallIcon: "ic_stat_name",
+              iconColor: "#5E5CE6",
+              largeBody: body,
               actionTypeId: "",
               extra: { taskId: task.id },
             },
@@ -114,16 +238,26 @@ export class NotificationService {
         return false;
       }
     } else {
-      // Browser web fallback (set a timeout if within current session)
-      const diffMs = targetDate.getTime() - now.getTime();
-      if (diffMs > 0 && diffMs < 2147483647 && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-        setTimeout(() => {
-          try {
-            new Notification(task.title, { body: task.notes || "Daymark Task Reminder" });
-          } catch {
-            // Ignore web notification failure
-          }
-        }, diffMs);
+      // Browser web fallback: clearly handle browser notifications and limitations
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "default") {
+          await this.requestPermissionsWithRationale();
+        }
+
+        const diffMs = targetDate.getTime() - now.getTime();
+        // Web notifications only trigger during the active browser session
+        if (diffMs > 0 && diffMs < 2147483647 && Notification.permission === "granted") {
+          setTimeout(() => {
+            try {
+              new Notification(title, {
+                body,
+                icon: "/favicon.ico",
+              });
+            } catch {
+              // Graceful fallback
+            }
+          }, diffMs);
+        }
       }
       return true;
     }
