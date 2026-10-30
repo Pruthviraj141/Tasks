@@ -8,6 +8,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.StrikethroughSpan;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -21,7 +24,8 @@ import java.util.Locale;
 /**
  * Daymark Android Home-Screen Widget Provider.
  * Displays today's task snapshot, allows one-tap task completion directly from the widget,
- * and provides instant one-tap voice capture launch action.
+ * and prominently displays active productivity streak with a compact flame badge.
+ * Zero background battery drain — event-driven updates only.
  */
 public class DaymarkWidgetProvider extends AppWidgetProvider {
 
@@ -121,6 +125,7 @@ public class DaymarkWidgetProvider extends AppWidgetProvider {
 
         // 2. Click on widget root opens MainActivity
         Intent openAppIntent = new Intent(context, MainActivity.class);
+        openAppIntent.putExtra("action", "open");
         openAppIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent openAppPendingIntent = PendingIntent.getActivity(
                 context,
@@ -130,19 +135,10 @@ public class DaymarkWidgetProvider extends AppWidgetProvider {
         );
         views.setOnClickPendingIntent(R.id.widget_root, openAppPendingIntent);
 
-        // 3. Click on mic button opens MainActivity with "action=voice" to trigger voice composer
-        Intent voiceIntent = new Intent(context, MainActivity.class);
-        voiceIntent.putExtra("action", "voice");
-        voiceIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent voicePendingIntent = PendingIntent.getActivity(
-                context,
-                1,
-                voiceIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-        views.setOnClickPendingIntent(R.id.widget_btn_mic, voicePendingIntent);
+        // Streak container tap also opens app
+        views.setOnClickPendingIntent(R.id.widget_streak_container, openAppPendingIntent);
 
-        // 4. Populate task data from snapshot
+        // 3. Populate task data and streak from snapshot
         try {
             SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
             String snapshotJson = prefs.getString(KEY_SNAPSHOT, null);
@@ -151,8 +147,13 @@ public class DaymarkWidgetProvider extends AppWidgetProvider {
                 JSONObject json = new JSONObject(snapshotJson);
                 int totalCount = json.optInt("totalCount", 0);
                 int completedCount = json.optInt("completedCount", 0);
+                int currentStreak = json.optInt("currentStreak", 0);
                 JSONArray tasks = json.optJSONArray("todayTasks");
 
+                // Display active streak count
+                views.setTextViewText(R.id.widget_streak_count, String.valueOf(currentStreak));
+
+                // Summary text
                 views.setTextViewText(R.id.widget_summary, completedCount + " of " + totalCount + " completed today");
 
                 if (tasks != null && tasks.length() > 0) {
@@ -171,16 +172,21 @@ public class DaymarkWidgetProvider extends AppWidgetProvider {
                             boolean isDone = taskObj.optBoolean("isCompleted", false);
 
                             views.setViewVisibility(rowIds[i], View.VISIBLE);
-                            views.setTextViewText(titleIds[i], title);
 
                             if (isDone) {
-                                views.setTextViewText(checkIds[i], "✓");
+                                views.setTextViewText(checkIds[i], "✔");
                                 views.setTextColor(checkIds[i], Color.parseColor("#34D399")); // Emerald
-                                views.setTextColor(titleIds[i], Color.parseColor("#888894"));
+                                views.setTextColor(titleIds[i], Color.parseColor("#8E8C98"));
+
+                                // Strikethrough for completed task title
+                                SpannableString span = new SpannableString(title);
+                                span.setSpan(new StrikethroughSpan(), 0, title.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                                views.setTextViewText(titleIds[i], span);
                             } else {
                                 views.setTextViewText(checkIds[i], "○");
                                 views.setTextColor(checkIds[i], Color.parseColor("#7C79F2")); // Violet
-                                views.setTextColor(titleIds[i], Color.parseColor("#E2E2E8"));
+                                views.setTextColor(titleIds[i], Color.parseColor("#FFFFFF")); // High-contrast White
+                                views.setTextViewText(titleIds[i], title);
                             }
 
                             // One-tap checkbox toggle broadcast
@@ -208,14 +214,16 @@ public class DaymarkWidgetProvider extends AppWidgetProvider {
                     views.setTextViewText(R.id.widget_summary, "0 of 0 completed today");
                 }
             } else {
+                views.setTextViewText(R.id.widget_streak_count, "0");
                 views.setViewVisibility(R.id.widget_task_container, View.GONE);
                 views.setViewVisibility(R.id.widget_empty_view, View.VISIBLE);
-                views.setTextViewText(R.id.widget_summary, "Tap mic to speak tasks");
+                views.setTextViewText(R.id.widget_summary, "Mark Your Day • Ready");
             }
         } catch (Exception e) {
+            views.setTextViewText(R.id.widget_streak_count, "0");
             views.setViewVisibility(R.id.widget_task_container, View.GONE);
             views.setViewVisibility(R.id.widget_empty_view, View.VISIBLE);
-            views.setTextViewText(R.id.widget_summary, "Daymark • Offline Ready");
+            views.setTextViewText(R.id.widget_summary, "Mark Your Day • Ready");
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views);
