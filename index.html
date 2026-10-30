@@ -4,9 +4,9 @@
 		<meta charset="UTF-8" />
 		<link rel="icon" type="image/svg+xml" href="/vite.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-		<meta name="theme-color" content="#FAF9F6" />
-		<meta name="description" content="Daymark — A minimalist, elegant mobile-first task manager" />
-		<title>Daymark</title>
+		<meta name="theme-color" content="#F8F7F3" />
+		<meta name="description" content="Mark Your Day — A minimalist, elegant mobile-first task manager" />
+		<title>Mark Your Day</title>
 		<script>
 			(function() {
 				try {
@@ -15,7 +15,7 @@
 					if (saved === 'dark' || (!saved && prefersDark)) {
 						document.documentElement.classList.add('dark');
 						var meta = document.querySelector('meta[name="theme-color"]');
-						if (meta) meta.setAttribute('content', '#0D0D10');
+						if (meta) meta.setAttribute('content', '#0C0C0E');
 					}
 				} catch (e) {}
 			})();
@@ -23,7 +23,88 @@
 	</head>
 
 	<body>
-		<div id="root"></div>
+		<div id="root">
+			<style>
+				.initial-splash {
+					position: fixed;
+					inset: 0;
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: space-between;
+					background-color: #F8F7F3;
+					color: #18181B;
+					font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+					padding: 48px 24px 32px;
+					user-select: none;
+					transition: background-color 0.2s ease;
+				}
+				.dark .initial-splash {
+					background-color: #0C0C0E;
+					color: #F4F4F6;
+				}
+				.initial-splash-center {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					flex: 1;
+				}
+				.initial-splash-logo {
+					width: 64px;
+					height: 64px;
+					border-radius: 18px;
+					background: linear-gradient(135deg, #5E5CE6, #7C3AED);
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					color: #FFFFFF;
+					box-shadow: 0 10px 25px rgba(94, 92, 230, 0.28);
+					margin-bottom: 16px;
+				}
+				.initial-splash-title {
+					font-size: 20px;
+					font-weight: 700;
+					letter-spacing: -0.02em;
+					margin: 0;
+				}
+				.initial-splash-credit {
+					font-size: 11px;
+					font-weight: 500;
+					letter-spacing: 0.12em;
+					text-transform: uppercase;
+					color: #8E8C85;
+					opacity: 0;
+					animation: splashCreditFade 0.8s ease-out 0.2s forwards;
+				}
+				.dark .initial-splash-credit {
+					color: #8E8C98;
+				}
+				@keyframes splashCreditFade {
+					from {
+						opacity: 0;
+						transform: translateY(4px);
+					}
+					to {
+						opacity: 0.75;
+						transform: translateY(0);
+					}
+				}
+			</style>
+			<div class="initial-splash">
+				<div class="initial-splash-center">
+					<div class="initial-splash-logo">
+						<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="20 6 9 17 4 12"></polyline>
+						</svg>
+					</div>
+					<h1 class="initial-splash-title">Mark Your Day</h1>
+				</div>
+				<div class="initial-splash-credit">
+					Built by Pruthvi
+				</div>
+			</div>
+		</div>
 		<script type="module" src="/src/react-app/main.tsx"></script>
 	</body>
 </html>

@@ -84,3 +84,58 @@ export function getTomorrowISODate(): string {
   const day = String(tomorrow.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Minimal shape shared by persisted Tasks and Proposed (unsaved) tasks, enough
+ * to classify a task into a day bucket without depending on the full Task type.
+ */
+export interface DateBucketable {
+  scheduledDate?: string | null;
+  dueDate?: string | null;
+  isCompleted?: boolean;
+}
+
+export type TaskDateBucket = "overdue" | "today" | "tomorrow" | "upcoming" | "anytime";
+
+/**
+ * True when a task has a schedule or deadline strictly before `referenceTodayStr`
+ * and has not been completed yet. This is the single source of truth for
+ * "missed" tasks so Today/Tomorrow/Upcoming filters and the home-screen widget
+ * never disagree about which tasks are overdue.
+ */
+export function isTaskOverdue(
+  task: DateBucketable,
+  referenceTodayStr: string = getTodayISODate()
+): boolean {
+  if (task.isCompleted) return false;
+  const effectiveDate = task.dueDate || task.scheduledDate;
+  return Boolean(effectiveDate) && effectiveDate! < referenceTodayStr;
+}
+
+/**
+ * Classifies a task into exactly one day bucket relative to today/tomorrow.
+ * This is the single source of truth used by the Today/Tomorrow/Upcoming tabs,
+ * their counters, and the Android widget snapshot — previously each of those
+ * re-implemented this check slightly differently, which is why tasks could
+ * silently vanish from every tab except "All" once their date passed.
+ *
+ * - "overdue": scheduled or due before today, and not completed yet.
+ * - "today": scheduled or due today (overdue tasks are reported separately
+ *   via isTaskOverdue, but still belong in the "today" view so they are never
+ *   hidden from the user).
+ * - "tomorrow" / "upcoming": scheduled or due on a later date.
+ * - "anytime": no scheduled date and no due date at all.
+ */
+export function getTaskDateBucket(
+  task: DateBucketable,
+  todayStr: string = getTodayISODate(),
+  tomorrowStr: string = getTomorrowISODate()
+): TaskDateBucket {
+  if (isTaskOverdue(task, todayStr)) return "overdue";
+
+  const dates = [task.scheduledDate, task.dueDate].filter(Boolean) as string[];
+  if (dates.length === 0) return "anytime";
+  if (dates.some((d) => d === todayStr)) return "today";
+  if (dates.some((d) => d === tomorrowStr)) return "tomorrow";
+  return "upcoming";
+}
