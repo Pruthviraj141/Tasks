@@ -142,3 +142,27 @@ export type ParseTaskErrorResponse = {
 };
 
 export type ParseTaskResponse = ParseTaskSuccessResponse | ParseTaskErrorResponse;
+
+// Transcribe & Parse Audio Result
+export interface TranscribeAndParseResult {
+  transcript: string;
+  tasks: ProposedTask[];
+  clarification: string | null;
+}
+
+export type TranscribeAndParseSuccessResponse = {
+  ok: true;
+  data: TranscribeAndParseResult;
+};
+
+export type TranscribeAndParseErrorResponse = {
+  ok: false;
+  error: {
+    code: string;
+    message: string;
+  };
+};
+
+export type TranscribeAndParseResponse =
+  | TranscribeAndParseSuccessResponse
+  | TranscribeAndParseErrorResponse;

@@ -34,4 +34,4 @@ export type UpdateTaskInput = Partial<CreateTaskInput> & {
   sortOrder?: number;
 };
 
-export type TaskFilter = 'all' | 'today' | 'upcoming' | 'completed';
+export type TaskFilter = 'all' | 'today' | 'tomorrow' | 'upcoming' | 'completed';
