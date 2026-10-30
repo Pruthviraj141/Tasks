@@ -16,54 +16,54 @@
 	-moz-osx-font-smoothing: grayscale;
 
 	/* Warm off-white, Apple-inspired minimal palette */
-	--background: #FAF9F6;
-	--foreground: #1C1C1E;
+	--background: #F8F7F3;
+	--foreground: #18181B;
 	--card: #FFFFFF;
-	--card-foreground: #1C1C1E;
+	--card-foreground: #18181B;
 	--popover: #FFFFFF;
-	--popover-foreground: #1C1C1E;
+	--popover-foreground: #18181B;
 
-	/* Refined blue-violet accent used sparingly */
-	--primary: #5E5CE6;
+	/* Refined indigo accent used with restraint */
+	--primary: #4F46E5;
 	--primary-foreground: #FFFFFF;
 
-	--secondary: #F3F2EE;
-	--secondary-foreground: #2C2C2E;
-	--muted: #F2F1EC;
+	--secondary: #F1EFEA;
+	--secondary-foreground: #27272A;
+	--muted: #EDEAE3;
 	--muted-foreground: #71717A;
-	--accent: #F4F3EF;
-	--accent-foreground: #1C1C1E;
+	--accent: #F1EFEA;
+	--accent-foreground: #18181B;
 	--destructive: #EF4444;
-	--border: #E8E6E0;
-	--input: #E4E2DC;
-	--ring: #5E5CE6;
+	--border: #E6E4DC;
+	--input: #E2DFD6;
+	--ring: #4F46E5;
 
 	--radius: 0.75rem;
 }
 
 .dark {
 	/* Deep obsidian & warm charcoal palette */
-	--background: #0D0D10;
+	--background: #0C0C0E;
 	--foreground: #F4F4F6;
-	--card: #18181D;
+	--card: #151518;
 	--card-foreground: #F4F4F6;
-	--popover: #18181D;
+	--popover: #151518;
 	--popover-foreground: #F4F4F6;
 
 	/* Refined luminous indigo-violet accent */
-	--primary: #7C79F2;
+	--primary: #6366F1;
 	--primary-foreground: #FFFFFF;
 
-	--secondary: #222228;
+	--secondary: #1F1F24;
 	--secondary-foreground: #E4E4EB;
-	--muted: #1E1E24;
-	--muted-foreground: #9494A0;
-	--accent: #23232A;
+	--muted: #1A1A1F;
+	--muted-foreground: #8E8E9A;
+	--accent: #212128;
 	--accent-foreground: #F4F4F6;
 	--destructive: #F87171;
-	--border: #282830;
-	--input: #2D2D36;
-	--ring: #7C79F2;
+	--border: #242429;
+	--input: #292930;
+	--ring: #6366F1;
 }
 
 @theme inline {
@@ -112,6 +112,11 @@
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
+    overscroll-behavior-y: none;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
   input, textarea, [contenteditable="true"] {
@@ -119,12 +124,22 @@
     -webkit-user-select: text;
   }
 
-  /* Safe area handling for mobile devices */
+  /* Safe area handling for mobile devices (Android edge-to-edge & iOS notch/home bar) */
   .safe-top {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: max(env(safe-area-inset-top, 0px), 0px);
   }
   
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+  }
+
+  .safe-pb {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Smooth momentum scrolling for mobile sheets and containers */
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 }

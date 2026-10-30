@@ -50,7 +50,7 @@ function applyThemeToDocument(theme: Theme) {
   // Update meta theme-color for mobile webviews and status bars
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
-    metaTheme.setAttribute("content", theme === "dark" ? "#0D0D10" : "#FAF9F6");
+    metaTheme.setAttribute("content", theme === "dark" ? "#0C0C0E" : "#F8F7F3");
   }
 }
 
