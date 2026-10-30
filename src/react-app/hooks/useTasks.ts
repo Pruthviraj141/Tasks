@@ -1,20 +1,26 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "../types/task";
 import { getTaskRepository } from "../storage";
 import { notificationService } from "../services/notifications/NotificationService";
 import { haptics } from "../lib/haptics";
 import { syncWidgetData, getPendingWidgetToggles } from "../storage/widgetSync";
+import { useAuth } from "../context/AuthContext";
 
 export function useTasks() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const tasksRef = useRef<Task[]>([]);
+  tasksRef.current = tasks;
 
-  const repository = useMemo(() => getTaskRepository(), []);
+  const repository = useMemo(() => getTaskRepository(), [user?.id]);
 
   const loadTasks = useCallback(async () => {
     try {
-      setIsLoading(true);
+      if (tasksRef.current.length === 0) {
+        setIsLoading(true);
+      }
       setError(null);
       let items = await repository.getTasks();
 
