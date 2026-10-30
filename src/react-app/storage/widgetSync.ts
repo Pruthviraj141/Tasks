@@ -1,5 +1,6 @@
 import type { Task } from "../types/task";
-import { getTodayISODate } from "../lib/dateUtils";
+import { getTodayISODate, getTomorrowISODate, getTaskDateBucket } from "../lib/dateUtils";
+import { calculateProductivityPulse } from "../lib/pulseUtils";
 
 export interface WidgetTaskItem {
   id: string;
@@ -14,6 +15,7 @@ export interface WidgetDataSnapshot {
   formattedDate: string;
   completedCount: number;
   totalCount: number;
+  currentStreak: number;
   todayTasks: WidgetTaskItem[];
   updatedAt: string;
 }
@@ -36,13 +38,33 @@ declare global {
  * Syncs the current task snapshot to local storage and the native Android widget provider
  * so the home-screen widget is refreshed with exact task states without polling.
  */
+/**
+ * Mirrors the app's "Today" tab bucketing (see lib/dateUtils.getTaskDateBucket)
+ * so the home-screen widget never disagrees with the in-app list. Previously
+ * this only checked `scheduledDate`, which meant any task with just a future
+ * `dueDate` (e.g. "submit report next month") was wrongly pinned to today
+ * forever, and anytime tasks completed long ago kept reappearing daily.
+ */
+export function isRelevantForTodayWidget(task: Task, todayStr: string, tomorrowStr: string): boolean {
+  const hasDate = Boolean(task.scheduledDate || task.dueDate);
+  if (hasDate) {
+    const bucket = getTaskDateBucket(task, todayStr, tomorrowStr);
+    return bucket === "today" || bucket === "overdue";
+  }
+  // Anytime task (no scheduled or due date): only relevant today while still
+  // active, or if it was completed earlier today — never resurrect it once
+  // another day has passed.
+  if (!task.isCompleted) return true;
+  return Boolean(task.completedAt) && task.completedAt!.slice(0, 10) === todayStr;
+}
+
 export function syncWidgetData(allTasks: Task[]): WidgetDataSnapshot {
   const todayStr = getTodayISODate();
-  const todayTasks = allTasks.filter(
-    (t) => !t.scheduledDate || t.scheduledDate === todayStr
-  );
+  const tomorrowStr = getTomorrowISODate();
+  const todayTasks = allTasks.filter((t) => isRelevantForTodayWidget(t, todayStr, tomorrowStr));
 
   const completedToday = todayTasks.filter((t) => t.isCompleted).length;
+  const pulse = calculateProductivityPulse(allTasks);
 
   const options: Intl.DateTimeFormatOptions = {
     weekday: "long",
@@ -56,6 +78,7 @@ export function syncWidgetData(allTasks: Task[]): WidgetDataSnapshot {
     formattedDate,
     completedCount: completedToday,
     totalCount: todayTasks.length,
+    currentStreak: pulse.currentStreak,
     todayTasks: todayTasks.slice(0, 10).map((t) => ({
       id: t.id,
       title: t.title,
