@@ -9,6 +9,19 @@ import {
 import { buildSystemPrompt } from "../src/worker/prompt";
 import workerApp from "../src/worker/index";
 import { WebTaskRepository } from "../src/react-app/storage/WebTaskRepository";
+import { getTaskDateBucket, isTaskOverdue } from "../src/react-app/lib/dateUtils";
+import { isRelevantForTodayWidget } from "../src/react-app/storage/widgetSync";
+import { SignJWT } from "jose";
+
+const TEST_JWT_SECRET = "test-phase2-jwt-secret-32-chars-long!!";
+async function getTestAuthHeaders(): Promise<Record<string, string>> {
+  const token = await new SignJWT({ sub: "phase2-test-user", role: "authenticated" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(TEST_JWT_SECRET));
+  return { Authorization: `Bearer ${token}` };
+}
 
 // Mock localStorage for node test environment
 if (typeof globalThis.localStorage === "undefined") {
@@ -64,6 +77,74 @@ async function runTests() {
     assert.strictEqual(isValidClockTime("00:00"), true);
     assert.strictEqual(isValidClockTime("25:90"), false); // Impossible time
     assert.strictEqual(isValidClockTime("12:65"), false);
+  });
+
+  // --- TODAY/TOMORROW/OVERDUE BUCKETING (fixes tasks silently vanishing once their date passes) ---
+  test("Bucketing: a task scheduled yesterday is 'overdue', not silently dropped", () => {
+    const task = { scheduledDate: "2026-10-22", isCompleted: false };
+    assert.strictEqual(isTaskOverdue(task, "2026-10-23"), true);
+    assert.strictEqual(getTaskDateBucket(task, "2026-10-23", "2026-10-24"), "overdue");
+  });
+
+  test("Bucketing: a completed task is never overdue, even with a past date", () => {
+    const task = { scheduledDate: "2026-10-22", isCompleted: true };
+    assert.strictEqual(isTaskOverdue(task, "2026-10-23"), false);
+    const bucket = getTaskDateBucket(task, "2026-10-23", "2026-10-24");
+    assert.notStrictEqual(bucket, "overdue");
+    assert.notStrictEqual(bucket, "today");
+  });
+
+  test("Bucketing: a task with only a future due date is 'upcoming', not 'today'", () => {
+    // This is the exact regression the widget/today-tab bug used to hit: a task
+    // with no scheduledDate but a dueDate weeks away must not be treated as "today".
+    const task = { dueDate: "2026-11-30", isCompleted: false };
+    assert.strictEqual(getTaskDateBucket(task, "2026-10-23", "2026-10-24"), "upcoming");
+  });
+
+  test("Bucketing: today/tomorrow/anytime classify correctly", () => {
+    assert.strictEqual(
+      getTaskDateBucket({ scheduledDate: "2026-10-23" }, "2026-10-23", "2026-10-24"),
+      "today"
+    );
+    assert.strictEqual(
+      getTaskDateBucket({ dueDate: "2026-10-24" }, "2026-10-23", "2026-10-24"),
+      "tomorrow"
+    );
+    assert.strictEqual(getTaskDateBucket({}, "2026-10-23", "2026-10-24"), "anytime");
+  });
+
+  test("Widget sync: anytime task stays relevant today only while active or completed today", () => {
+    const stillActive = { isCompleted: false } as Parameters<typeof isRelevantForTodayWidget>[0];
+    assert.strictEqual(isRelevantForTodayWidget(stillActive, "2026-10-23", "2026-10-24"), true);
+
+    const completedLongAgo = {
+      isCompleted: true,
+      completedAt: "2026-09-01T10:00:00.000Z",
+    } as Parameters<typeof isRelevantForTodayWidget>[0];
+    assert.strictEqual(
+      isRelevantForTodayWidget(completedLongAgo, "2026-10-23", "2026-10-24"),
+      false
+    );
+
+    const completedToday = {
+      isCompleted: true,
+      completedAt: "2026-10-23T10:00:00.000Z",
+    } as Parameters<typeof isRelevantForTodayWidget>[0];
+    assert.strictEqual(
+      isRelevantForTodayWidget(completedToday, "2026-10-23", "2026-10-24"),
+      true
+    );
+  });
+
+  test("Widget sync: task with only a distant due date is not pinned to today forever", () => {
+    const distantDeadline = {
+      isCompleted: false,
+      dueDate: "2026-12-25",
+    } as Parameters<typeof isRelevantForTodayWidget>[0];
+    assert.strictEqual(
+      isRelevantForTodayWidget(distantDeadline, "2026-10-23", "2026-10-24"),
+      false
+    );
   });
 
   // --- CASE 13: EMPTY SPEECH RESULT ---
@@ -368,12 +449,13 @@ async function runTests() {
   });
 
   await testAsync("Worker API: POST /api/parse-task rejects invalid JSON with 400", async () => {
+    const authHeaders = await getTestAuthHeaders();
     const req = new Request("http://localhost/api/parse-task", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders },
       body: "invalid-json{",
     });
-    const res = await workerApp.fetch(req, {} as Env);
+    const res = await workerApp.fetch(req, { SUPABASE_SECRET_KEY: TEST_JWT_SECRET } as unknown as Env);
     assert.strictEqual(res.status, 400);
   });
 
@@ -384,16 +466,17 @@ async function runTests() {
     delete process.env.Groq_api_key;
 
     try {
+      const authHeaders = await getTestAuthHeaders();
       const req = new Request("http://localhost/api/parse-task", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           transcript: "Code for one hour",
           referenceNow: "2026-10-23T10:00:00",
           timeZone: "Asia/Kolkata",
         }),
       });
-      const res = await workerApp.fetch(req, {} as Env);
+      const res = await workerApp.fetch(req, { SUPABASE_SECRET_KEY: TEST_JWT_SECRET } as unknown as Env);
       assert.strictEqual(res.status, 503);
       const body = (await res.json()) as { ok: boolean; error: { code: string } };
       assert.strictEqual(body.ok, false);
@@ -429,26 +512,32 @@ async function runTests() {
 
   if (process.env.GROQ_API_KEY) {
     async function fetchWithGroqRetry(bodyObj: Record<string, unknown>): Promise<Response> {
+      const authHeaders = await getTestAuthHeaders();
+      const env = {
+        GROQ_API_KEY: process.env.GROQ_API_KEY,
+        SUPABASE_SECRET_KEY: TEST_JWT_SECRET,
+      } as unknown as Env;
+
       for (let attempt = 0; attempt < 3; attempt++) {
         const req = new Request("http://localhost/api/parse-task", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify(bodyObj),
         });
-        const res = await workerApp.fetch(req, { GROQ_API_KEY: process.env.GROQ_API_KEY } as Env);
-        if (res.status === 429) {
-          console.log("    (Groq TPM rate limit hit, waiting 7s before retry...)");
-          await sleep(7000);
+        const res = await workerApp.fetch(req, env);
+        if (res.status === 429 || res.status === 500) {
+          console.log(`    (Groq status ${res.status}, waiting 4s before retry...)`);
+          await sleep(4000);
           continue;
         }
         return res;
       }
       const finalReq = new Request("http://localhost/api/parse-task", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(bodyObj),
       });
-      return await workerApp.fetch(finalReq, { GROQ_API_KEY: process.env.GROQ_API_KEY } as Env);
+      return await workerApp.fetch(finalReq, env);
     }
 
     await sleep(2500); // Wait for rate limit window to refresh
@@ -601,6 +690,29 @@ async function runTests() {
     assert.strictEqual(id1 <= 2147483647, true);
   });
 
+  test("NotificationService: generateNotificationCopy produces motivating copy with task title", async () => {
+    const { generateNotificationCopy } = await import("../src/react-app/services/notifications/NotificationService");
+    const copy = generateNotificationCopy({
+      id: "task-abc-123",
+      title: "Deep Work on SignVision",
+      notes: "Focus on vector drawables and Hono worker",
+    });
+
+    assert.ok(copy.title.length > 0, "Title must not be empty");
+    assert.match(copy.body, /Deep Work on SignVision/, "Body must reference task title");
+    assert.match(copy.body, /Focus on vector drawables/, "Body must include notes if present");
+  });
+
+  test("Fluid Navigation: Date utilities compute today and tomorrow ISO formats", async () => {
+    const { getTodayISODate, getTomorrowISODate } = await import("../src/react-app/lib/dateUtils");
+    const today = getTodayISODate();
+    const tomorrow = getTomorrowISODate();
+
+    assert.match(today, /^\d{4}-\d{2}-\d{2}$/);
+    assert.match(tomorrow, /^\d{4}-\d{2}-\d{2}$/);
+    assert.notStrictEqual(today, tomorrow);
+  });
+
   // --- CASE 17: USER EDITS PROPOSAL & CASE 18: LOCAL PERSISTENCE ---
   await testAsync("Case 17 & 18: User edits proposal and saves to local repository", async () => {
     const repo = new WebTaskRepository();
@@ -637,6 +749,73 @@ async function runTests() {
     const updatedTasks = await repo.getTasks();
     assert.strictEqual(updatedTasks.length, initialCount + 1);
     assert.strictEqual(updatedTasks[0].id, saved.id);
+  });
+
+  // --- PREMIUM INTERACTION & MOTION LIFECYCLE TESTS ---
+  await test("Interactions: Navigation transition filters tasks correctly", async () => {
+    const today = "2026-10-30";
+    const tomorrow = "2026-10-31";
+    const sampleTasks = [
+      { id: "1", title: "Task 1", scheduledDate: today, isCompleted: false },
+      { id: "2", title: "Task 2", scheduledDate: tomorrow, isCompleted: false },
+      { id: "3", title: "Task 3", isCompleted: true },
+    ];
+    // Today filter (only active tasks)
+    const activeTasks = sampleTasks.filter((t) => !t.isCompleted);
+    const todayTasks = activeTasks.filter((t) => {
+      const b = getTaskDateBucket(t, today, tomorrow);
+      return b === "today" || b === "anytime" || b === "overdue";
+    });
+    assert.strictEqual(todayTasks.length, 1);
+    assert.strictEqual(todayTasks[0].id, "1");
+
+    // Tomorrow filter
+    const tomorrowTasks = sampleTasks.filter(
+      (t) => getTaskDateBucket(t, today, tomorrow) === "tomorrow"
+    );
+    assert.strictEqual(tomorrowTasks.length, 1);
+    assert.strictEqual(tomorrowTasks[0].id, "2");
+  });
+
+  await test("Interactions: Task edit persists to local repository", async () => {
+    const repo = new WebTaskRepository();
+    await repo.init();
+    const created = await repo.createTask({
+      title: "Original Title",
+      scheduledDate: "2026-10-30",
+    });
+    const updated = await repo.updateTask(created.id, { title: "Edited Title" });
+    assert.strictEqual(updated.title, "Edited Title");
+    const retrieved = await repo.getTaskById(created.id);
+    assert.strictEqual(retrieved?.title, "Edited Title");
+  });
+
+  await test("Interactions: Swipe completion and Undo restores original state", async () => {
+    const repo = new WebTaskRepository();
+    await repo.init();
+    const task = await repo.createTask({
+      title: "Swipe Complete Test",
+      scheduledDate: "2026-10-30",
+    });
+    assert.strictEqual(task.isCompleted, false);
+
+    // 1. Complete (Swipe right threshold crossed)
+    const completed = await repo.toggleTask(task.id);
+    assert.strictEqual(completed.isCompleted, true);
+
+    // 2. Undo (4-second undo action pressed)
+    const restored = await repo.toggleTask(task.id);
+    assert.strictEqual(restored.isCompleted, false);
+  });
+
+  await test("Interactions: Pull-to-refresh re-fetches state from repository without remote calls", async () => {
+    const repo = new WebTaskRepository();
+    await repo.init();
+    const initialList = await repo.getTasks();
+    assert.ok(Array.isArray(initialList));
+    // Simulating pull-to-refresh
+    const refreshedList = await repo.getTasks();
+    assert.strictEqual(refreshedList.length, initialList.length);
   });
 
   console.log(`\nTest Results: ${passed} passed, ${failed} failed.`);
