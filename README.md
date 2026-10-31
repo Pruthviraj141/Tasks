@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/daymark-banner.svg" alt="Daymark Banner" width="100%" />
+  <img src="docs/assets/markyourday-banner.svg" alt="MarkYourDay Banner" width="100%" />
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://daymark.markyourday.workers.dev">
-    <img src="https://img.shields.io/badge/🌐_Live_Web_App-Visit_Daymark-4F46E5?style=for-the-badge&logoColor=white" alt="Live Web App" />
+    <img src="https://img.shields.io/badge/🌐_Live_Web_App-Visit_MarkYourDay-4F46E5?style=for-the-badge&logoColor=white" alt="Live Web App" />
   </a>
   &nbsp;
   <a href="https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkMyDay.apk">
@@ -26,7 +26,7 @@
 
 <p align="center">
   <a href="#-links--quick-access">Links</a> •
-  <a href="#-why-daymark-why-not-just-google-tasks-or-random-play-store-apps">Why Daymark</a> •
+  <a href="#-why-markyourday-why-not-just-google-tasks-or-random-play-store-apps">Why MarkYourDay</a> •
   <a href="#-features-built-for-speed-zero-fluff">Features</a> •
   <a href="#-quick-tour--gallery">App Gallery</a> •
   <a href="#-architecture--tech-stack">Tech Stack</a> •
@@ -56,7 +56,7 @@
 
 ---
 
-## 💡 Why Daymark? (Why Not Just Google Tasks or Random Play Store Apps?)
+## 💡 Why MarkYourDay? (Why Not Just Google Tasks or Random Play Store Apps?)
 
 Let's be completely honest: **typing your daily tasks on a tiny mobile keyboard is where productive momentum goes to die.**
 
@@ -72,11 +72,11 @@ By the second task, you've completely lost your flow, got sidetracked by a notif
 And what about the typical apps on the app store?
 They hit you with mandatory account signups, pop-up ads for mobile games, or slap a **$4.99/month subscription paywall** on basic essentials like recurring tasks, dark mode, or widgets. To top it off, your personal daily routine gets uploaded to big-tech cloud servers to fuel targeted ad profiles.
 
-**Daymark was built to kill that friction entirely.** One breath. Zero typing. Zero subscriptions. Zero cloud surveillance.
+**MarkYourDay was built to kill that friction entirely.** One breath. Zero typing. Zero subscriptions. Zero cloud surveillance.
 
-### 🥊 Google Tasks / Play Store vs. Daymark
+### 🥊 Google Tasks / Play Store vs. MarkYourDay
 
-| Friction Point | Traditional Apps (Google Tasks, Todoist, Play Store) 🥱 | Daymark ⚡ |
+| Friction Point | Traditional Apps (Google Tasks, Todoist, Play Store) 🥱 | MarkYourDay ⚡ |
 | :--- | :--- | :--- |
 | **Input Speed** | 10+ taps, typing on keyboard, fidgeting with date pickers | **Hold mic, speak naturally for 5 seconds.** Handled. |
 | **Multi-Task Brain Dump** | Must create tasks one by painful one | **Decomposes 3-4 tasks from a single breath** in ~400ms via Groq LLM |
@@ -91,16 +91,16 @@ They hit you with mandatory account signups, pop-up ads for mobile games, or sla
 
 ## ⚡ Features Built for Speed, Zero Fluff
 
-Every single feature in Daymark was engineered around one rule: **maximum execution, zero friction.**
+Every single feature in MarkYourDay was engineered around one rule: **maximum execution, zero friction.**
 
 ### 🎙️ 1. Multi-Task Voice Brain-Dump (Groq GPT-OSS 20B)
-Speak naturally without robot syntax: *"Gym at 6 PM, review the pull requests for two hours, and call mom tomorrow morning at 10."* Powered by **Groq's edge inference running `openai/gpt-oss-20b`**, Daymark parses your voice in sub-second speed (~400ms), resolves start times, durations, and deadlines into separate structured cards, and lets you tap once to confirm and save all tasks simultaneously. Supports **English, Hindi (हिंदी), Marathi (मराठी)**, and conversational Hinglish.
+Speak naturally without robot syntax: *"Gym at 6 PM, review the pull requests for two hours, and call mom tomorrow morning at 10."* Powered by **Groq's edge inference running `openai/gpt-oss-20b`**, MarkYourDay parses your voice in sub-second speed (~400ms), resolves start times, durations, and deadlines into separate structured cards, and lets you tap once to confirm and save all tasks simultaneously. Supports **English, Hindi (हिंदी), Marathi (मराठी)**, and conversational Hinglish.
 
 ### 🔒 2. Zero-Latency, 100% Local-First SQLite & Private Cloud Backup
-Zero wait times. On Android, Daymark writes directly to native SQLite (`daymark_tasks.db`) via `@capacitor-community/sqlite`. When signed in, background cloud sync merges non-destructively so your local additions and completions always display with 0ms latency.
+Zero wait times. On Android, MarkYourDay writes directly to native SQLite via `@capacitor-community/sqlite`. When signed in, background cloud sync merges non-destructively so your local additions and completions always display with 0ms latency.
 
 ### ⏱️ 3. Sleep-Proof Focus Mode with Persistent Status Bar Notification
-Timers that reset when your screen turns off are useless. Daymark's Focus Mode uses hardware timestamp-delta calculations (`Date.now() - sessionStart`). While running, an **ongoing notification sits in your Android status bar and lock screen** showing live countdown ticks (`⏱️ 24:35 • Focusing: Task Name`). You can lock your phone and put it in your pocket; tapping the notification outside the app brings you right back into the active session.
+Timers that reset when your screen turns off are useless. MarkYourDay's Focus Mode uses hardware timestamp-delta calculations (`Date.now() - sessionStart`). While running, an **ongoing notification sits in your Android status bar and lock screen** showing live countdown ticks (`⏱️ 24:35 • Focusing: Task Name`). You can lock your phone and put it in your pocket; tapping the notification outside the app brings you right back into the active session.
 
 ### 📱 4. Interactive Android Home-Screen Widget
 Never open the app just to tick a box. The native Android widget displays today's live tasks right on your home screen. Tap any task checkbox to complete it on the spot (syncs directly with local SQLite). Need to capture a thought? Tap the widget's mic icon to launch straight into voice capture.
@@ -115,19 +115,19 @@ Built-in proof of work. Turn today's completed tasks into clean, aesthetic graph
 Real consistency, no fake dopamine. The Pulse dashboard tracks consecutive days where you *actually completed* at least one task. Features an animated flame badge (`🔥 7`) and a 7-day visual milestone track where your consecutive streak number is embedded directly inside active completion markers.
 
 ### 🌓 7. Dual Themes: Crisp White Mode & Midnight Charcoal
-No blinding white screens, and no lazy pure-black backgrounds that cause eye strain. Daymark features a custom-tuned charcoal dark mode designed specifically for contrast and OLED battery saving, paired with a warm editorial off-white paper light theme with deep dark black fonts.
+No blinding white screens, and no lazy pure-black backgrounds that cause eye strain. MarkYourDay features a custom-tuned charcoal dark mode designed specifically for contrast and OLED battery saving, paired with a warm editorial off-white paper light theme with deep dark black fonts.
 
 ### 📜 8. Daily Stoic Spark
-Every midnight, Daymark quietly updates with a curated philosophical or stoic insight (Marcus Aurelius, Seneca, Naval) to keep you grounded before you start executing. Zero cringe hustle bro quotes.
+Every midnight, MarkYourDay quietly updates with a curated philosophical or stoic insight (Marcus Aurelius, Seneca, Naval) to keep you grounded before you start executing. Zero cringe hustle bro quotes.
 
 ---
 
 ## 📱 Quick Tour & Gallery
 
-Every screenshot below is captured directly from the live running Daymark application:
+Every screenshot below is captured directly from the live running MarkYourDay application:
 
 | Dark Theme Task View | Light Theme Task View |
-| :--- :| :---: |
+| :---: | :---: |
 | <img src="docs/assets/app-dark-main.png" alt="Dark Theme View" width="380" /> | <img src="docs/assets/app-light-main.png" alt="Light Theme View" width="380" /> |
 | *Editorial typography, daily quote, and progress bar* | *Warm off-white surfaces and accessible contrast* |
 
@@ -146,10 +146,10 @@ Every screenshot below is captured directly from the live running Daymark applic
 ## 🛠️ Architecture & Tech Stack
 
 ```
-daymark/
+markyourday/
 ├── android/                   # Native Android Capacitor wrapper
 │   ├── app/src/main/res/      # AppWidget XML layouts & drawables
-│   └── app/src/main/java/     # DaymarkWidgetProvider.java & MainActivity.java
+│   └── app/src/main/java/     # AppWidgetProvider & MainActivity.java
 ├── src/
 │   ├── react-app/             # Frontend UI (React 19 + TypeScript + Vite)
 │   │   ├── components/        # Modals (Voice, Pulse, Focus, ShareCard, Tasks)
@@ -263,7 +263,7 @@ android/app/build/outputs/apk/debug/MarkYourDay-debug.apk
 
 ## 🧪 Running Tests
 
-Daymark includes automated test coverage validating Zod schemas, date math, Groq parsing accuracy, streak calculations, and Android widget layouts:
+MarkYourDay includes automated test coverage validating Zod schemas, date math, Groq parsing accuracy, streak calculations, and Android widget layouts:
 
 ```bash
 # Run Master Test Suite
