@@ -121,33 +121,73 @@ export function useTasks() {
     [repository]
   );
 
+  const createTasks = useCallback(
+    async (inputs: CreateTaskInput[]) => {
+      try {
+        let created: Task[] = [];
+        if ("createTasks" in repository && typeof (repository as { createTasks?: unknown }).createTasks === "function") {
+          created = await (repository as { createTasks: (items: CreateTaskInput[]) => Promise<Task[]> }).createTasks(inputs);
+        } else {
+          for (const input of inputs) {
+            const task = await repository.createTask(input);
+            created.push(task);
+          }
+        }
+        const createdIds = new Set(created.map((c) => c.id));
+        setTasks((prev) => [...created, ...prev.filter((t) => !createdIds.has(t.id))]);
+        haptics.taskSaved().catch(() => {});
+
+        for (const t of created) {
+          if (t.reminderDate && t.reminderTime) {
+            notificationService.scheduleReminder(t).catch((err) => {
+              console.warn("Failed to schedule reminder notification:", err);
+            });
+          }
+        }
+
+        return created;
+      } catch (err) {
+        console.error("Failed to create tasks", err);
+        setError("Failed to add tasks");
+        throw err;
+      }
+    },
+    [repository]
+  );
+
   const toggleTask = useCallback(
     async (id: string) => {
-      // Optimistic update
+      const now = new Date().toISOString();
+      let isNowCompleted = false;
+
+      // Instant 0ms optimistic UI update
       setTasks((prev) =>
         prev.map((t) => {
           if (t.id === id) {
             const willBeCompleted = !t.isCompleted;
+            isNowCompleted = willBeCompleted;
             return {
               ...t,
               isCompleted: willBeCompleted,
-              completedAt: willBeCompleted ? new Date().toISOString() : undefined,
-              updatedAt: new Date().toISOString(),
+              completedAt: willBeCompleted ? now : undefined,
+              updatedAt: now,
             };
           }
           return t;
         })
       );
 
+      // Instant haptics & reminder cancellation
+      if (isNowCompleted) {
+        haptics.taskCompleted().catch(() => {});
+        notificationService.cancelReminder(id).catch(() => {});
+      }
+
       try {
         const updated = await repository.toggleTask(id);
         setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
 
-        // If completed, trigger subtle haptic feedback and cancel reminder
-        if (updated.isCompleted) {
-          haptics.taskCompleted().catch(() => {});
-          notificationService.cancelReminder(id).catch(() => {});
-        } else if (updated.reminderDate && updated.reminderTime) {
+        if (!updated.isCompleted && updated.reminderDate && updated.reminderTime) {
           notificationService.scheduleReminder(updated).catch(() => {});
         }
 
@@ -215,6 +255,7 @@ export function useTasks() {
     isLoading,
     error,
     createTask,
+    createTasks,
     updateTask,
     toggleTask,
     deleteTask,
