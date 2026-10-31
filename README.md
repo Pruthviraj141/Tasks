@@ -11,12 +11,18 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkYourDay.apk">
+    <img src="https://img.shields.io/badge/📥_DOWNLOAD_APK-MarkYourDay.apk_(v1.0.0)-10B981?style=for-the-badge&logo=android&logoColor=white" height="42" alt="Download MarkYourDay APK" />
+  </a>
+</p>
+
+<p align="center">
   <a href="https://daymark.markyourday.workers.dev">
     <img src="https://img.shields.io/badge/🌐_Live_Web_App-Visit_MarkYourDay-4F46E5?style=for-the-badge&logoColor=white" alt="Live Web App" />
   </a>
   &nbsp;
-  <a href="https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkYourDay.apk">
-    <img src="https://img.shields.io/badge/📱_Android_APK-Download_v1.0.0-10B981?style=for-the-badge&logo=android&logoColor=white" alt="Download APK" />
+  <a href="https://github.com/Pruthviraj141/Tasks/raw/main/MarkYourDay.apk">
+    <img src="https://img.shields.io/badge/📱_Repo_Mirror-Direct_File-2563EB?style=for-the-badge&logo=android&logoColor=white" alt="Direct File Mirror" />
   </a>
   &nbsp;
   <a href="https://github.com/Pruthviraj141/Tasks/releases">
@@ -50,8 +56,8 @@
 
 | Platform / Artifact | Link | Details |
 | :--- | :--- | :--- |
+| **📱 Direct Android APK** | [**Download MarkYourDay.apk (v1.0.0)**](https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkYourDay.apk) | Standalone release bundle for all modern Android devices |
 | **🌐 Production Web App** | [daymark.markyourday.workers.dev](https://daymark.markyourday.workers.dev) | Instant PWA / web client running on Cloudflare Edge |
-| **📱 Direct Android APK** | [Download MarkYourDay.apk (v1.0.0)](https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkYourDay.apk) | Standalone release bundle for all modern Android devices |
 | **📦 GitHub Releases** | [github.com/Pruthviraj141/Tasks/releases](https://github.com/Pruthviraj141/Tasks/releases) | Release notes, asset checksums, and version history |
 
 ---
