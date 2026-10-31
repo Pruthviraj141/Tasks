@@ -15,7 +15,7 @@
     <img src="https://img.shields.io/badge/🌐_Live_Web_App-Visit_MarkYourDay-4F46E5?style=for-the-badge&logoColor=white" alt="Live Web App" />
   </a>
   &nbsp;
-  <a href="https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkMyDay.apk">
+  <a href="https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkYourDay.apk">
     <img src="https://img.shields.io/badge/📱_Android_APK-Download_v1.0.0-10B981?style=for-the-badge&logo=android&logoColor=white" alt="Download APK" />
   </a>
   &nbsp;
@@ -51,7 +51,7 @@
 | Platform / Artifact | Link | Details |
 | :--- | :--- | :--- |
 | **🌐 Production Web App** | [daymark.markyourday.workers.dev](https://daymark.markyourday.workers.dev) | Instant PWA / web client running on Cloudflare Edge |
-| **📱 Direct Android APK** | [Download MarkMyDay.apk (v1.0.0)](https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkMyDay.apk) | Standalone release bundle for all modern Android devices |
+| **📱 Direct Android APK** | [Download MarkYourDay.apk (v1.0.0)](https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkYourDay.apk) | Standalone release bundle for all modern Android devices |
 | **📦 GitHub Releases** | [github.com/Pruthviraj141/Tasks/releases](https://github.com/Pruthviraj141/Tasks/releases) | Release notes, asset checksums, and version history |
 
 ---
@@ -221,7 +221,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 📱 Building the Android App
 
-You can directly download the pre-compiled APK from [GitHub Releases](https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkMyDay.apk) or compile it yourself locally:
+You can directly download the pre-compiled APK from [GitHub Releases](https://github.com/Pruthviraj141/Tasks/releases/download/v1.0.0/MarkYourDay.apk) or compile it yourself locally:
 
 <details>
 <summary><strong>Click to view Android Build Steps</strong></summary>

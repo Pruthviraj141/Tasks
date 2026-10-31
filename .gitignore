@@ -203,4 +203,15 @@ dist
 remotion-video/
 videoimages/
 *.mp4
+
+### Skills & Agent Configurations ###
+.agents/
+.claude/
+agent/
+.vscode/
+skills-lock.json
+
+### Android Builds ###
 *.apk
+!MarkYourDay.apk
+
