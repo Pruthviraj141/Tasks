@@ -265,10 +265,13 @@ export class WebAudioRecorderService implements AudioRecorder {
         const res = await navigator.permissions.query({ name: "microphone" as PermissionName });
         return res.state === "granted";
       } catch {
-        // Some browsers don't support querying microphone permission
+        // Some browsers don't support querying microphone permission via permissions API
       }
     }
-    return true;
+    if (typeof localStorage !== "undefined") {
+      return localStorage.getItem("daymark_mic_permission_granted") === "true";
+    }
+    return false;
   }
 
   async requestPermission(): Promise<boolean> {
@@ -276,9 +279,15 @@ export class WebAudioRecorderService implements AudioRecorder {
       if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((t) => t.stop());
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem("daymark_mic_permission_granted", "true");
+        }
         return true;
       }
     } catch {
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("daymark_mic_permission_granted");
+      }
       return false;
     }
     return false;
