@@ -85,6 +85,11 @@ export class NotificationService {
     }
   }
 
+  isSupported(): boolean {
+    if (Capacitor.isNativePlatform()) return true;
+    return typeof window !== "undefined" && "Notification" in window;
+  }
+
   async getPermissionStatus(): Promise<"granted" | "denied" | "prompt" | "prompt-with-rationale"> {
     if (!Capacitor.isNativePlatform()) {
       if (typeof window !== "undefined" && "Notification" in window) {
@@ -164,7 +169,7 @@ export class NotificationService {
 
     try {
       // Explain benefit contextually if not granted
-      toast.info("Turn on notifications so Daymark can remind you at your scheduled time.", {
+      toast.info("Turn on notifications so Mark Your Day can remind you at your scheduled time.", {
         duration: 3500,
       });
 
@@ -260,6 +265,108 @@ export class NotificationService {
         }
       }
       return true;
+    }
+  }
+
+  async ensureTimerChannelCreated(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      await LocalNotifications.createChannel({
+        id: "daymark_focus_timer_v1",
+        name: "Focus Timer",
+        description: "Ongoing timer notifications for active focus sessions",
+        importance: 2,
+        visibility: 1,
+        vibration: false,
+        lights: false,
+      });
+    } catch (err) {
+      console.warn("Failed to create timer channel:", err);
+    }
+  }
+
+  async updateFocusTimerNotification(
+    taskTitle: string,
+    remainingSeconds: number,
+    isRunning: boolean
+  ): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      await this.ensureTimerChannelCreated();
+
+      const hours = Math.floor(remainingSeconds / 3600);
+      const minutes = Math.floor((remainingSeconds % 3600) / 60);
+      const seconds = remainingSeconds % 60;
+      const timeFormatted =
+        hours > 0
+          ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+          : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+      const title = isRunning
+        ? `⏱️ ${timeFormatted} • Focusing: ${taskTitle}`
+        : `⏸️ ${timeFormatted} (Paused) • ${taskTitle}`;
+
+      const body = isRunning
+        ? "Focus timer is currently active. Keep up the great work!"
+        : "Focus timer paused. Tap to return to the app.";
+
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: 999999,
+            title,
+            body,
+            channelId: "daymark_focus_timer_v1",
+            smallIcon: "ic_stat_name",
+            iconColor: "#4F46E5",
+            ongoing: isRunning,
+            autoCancel: false,
+            silent: true,
+            extra: { isFocusTimer: true },
+          },
+        ],
+      });
+    } catch (err) {
+      console.warn("Failed to update focus timer notification:", err);
+    }
+  }
+
+  async notifyFocusSessionCompleted(taskTitle: string): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      await this.cancelFocusTimerNotification();
+      await this.ensureChannelCreated();
+
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: 999999,
+            title: `🎉 Focus Session Complete!`,
+            body: `Great job! You finished your focused session for: "${taskTitle}"`,
+            channelId: REMINDER_CHANNEL_ID,
+            smallIcon: "ic_stat_name",
+            iconColor: "#10B981",
+            autoCancel: true,
+            ongoing: false,
+          },
+        ],
+      });
+    } catch (err) {
+      console.warn("Failed to notify focus completion:", err);
+    }
+  }
+
+  async cancelFocusTimerNotification(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      await LocalNotifications.cancel({
+        notifications: [{ id: 999999 }],
+      });
+    } catch (err) {
+      console.warn("Failed to cancel focus timer notification:", err);
     }
   }
 
