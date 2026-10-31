@@ -9,6 +9,7 @@ import {
   transcribeAndParseAudio,
 } from "../services/api/taskParsingApi";
 import type { TaskRepository } from "../storage/TaskRepository";
+import type { Task } from "../types/task";
 import { notificationService } from "../services/notifications/NotificationService";
 import { haptics } from "../lib/haptics";
 
@@ -449,28 +450,36 @@ export function useVoiceTaskFlow(repository: TaskRepository, onSaveComplete?: ()
     dispatch({ type: "START_SAVING" });
 
     try {
-      const savePromises = state.proposedTasks.map(async (proposal) => {
-        const createdTask = await repository.createTask({
-          title: proposal.title.trim(),
-          notes: proposal.notes?.trim() || undefined,
-          scheduledDate: proposal.scheduledDate || undefined,
-          scheduledTime: proposal.scheduledTime || undefined,
-          durationMinutes: proposal.durationMinutes || undefined,
-          dueDate: proposal.dueDate || undefined,
-          dueTime: proposal.dueTime || undefined,
-          reminderDate: proposal.reminderDate || undefined,
-          reminderTime: proposal.reminderTime || undefined,
-        });
+      const inputs = state.proposedTasks.map((proposal) => ({
+        title: proposal.title.trim(),
+        notes: proposal.notes?.trim() || undefined,
+        scheduledDate: proposal.scheduledDate || undefined,
+        scheduledTime: proposal.scheduledTime || undefined,
+        durationMinutes: proposal.durationMinutes || undefined,
+        dueDate: proposal.dueDate || undefined,
+        dueTime: proposal.dueTime || undefined,
+        reminderDate: proposal.reminderDate || undefined,
+        reminderTime: proposal.reminderTime || undefined,
+      }));
 
+      let createdTasks: Task[] = [];
+      if ("createTasks" in repository && typeof (repository as { createTasks?: unknown }).createTasks === "function") {
+        createdTasks = await (repository as { createTasks: (items: typeof inputs) => Promise<Task[]> }).createTasks(inputs);
+      } else {
+        for (const input of inputs) {
+          const task = await repository.createTask(input);
+          createdTasks.push(task);
+        }
+      }
+
+      for (const createdTask of createdTasks) {
         if (createdTask.reminderDate && createdTask.reminderTime) {
           notificationService.scheduleReminder(createdTask).catch((err) => {
             console.warn("Failed to schedule notification for voice-created task:", err);
           });
         }
-        return createdTask;
-      });
+      }
 
-      const createdTasks = await Promise.all(savePromises);
       dispatch({ type: "SAVE_SUCCESS", count: createdTasks.length });
       haptics.taskSaved().catch(() => {});
       if (onSaveComplete) {
