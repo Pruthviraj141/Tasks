@@ -27,6 +27,7 @@ export class SupabaseTaskRepository implements TaskRepository {
   private cacheKey: string;
   private memoryTasks: Task[] = [];
   private isInitialized = false;
+  private pendingDeletedIds = new Set<string>();
 
   constructor(userId: string) {
     this.userId = userId;
@@ -115,9 +116,39 @@ export class SupabaseTaskRepository implements TaskRepository {
         return [...this.memoryTasks].sort((a, b) => a.sortOrder - b.sortOrder);
       }
 
-      const tasks = (data as DbTaskRow[]).map((r) => this.mapRowToTask(r));
-      this.saveToLocalCache(tasks);
-      return tasks;
+      const cloudTasks = (data as DbTaskRow[]).map((r) => this.mapRowToTask(r));
+
+      // Intelligent Local-First Merge:
+      // Local changes take absolute priority over stale cloud snapshots
+      const mergedMap = new Map<string, Task>();
+
+      for (const ct of cloudTasks) {
+        if (!this.pendingDeletedIds.has(ct.id)) {
+          mergedMap.set(ct.id, ct);
+        }
+      }
+
+      for (const lt of this.memoryTasks) {
+        if (this.pendingDeletedIds.has(lt.id)) {
+          continue;
+        }
+        const cloudMatch = mergedMap.get(lt.id);
+        if (!cloudMatch) {
+          // Freshly created local task not in cloud yet -> KEEP LOCAL!
+          mergedMap.set(lt.id, lt);
+        } else {
+          // Both have it -> local takes precedence if equal or newer
+          const localTime = new Date(lt.updatedAt || lt.createdAt).getTime();
+          const cloudTime = new Date(cloudMatch.updatedAt || cloudMatch.createdAt).getTime();
+          if (localTime >= cloudTime) {
+            mergedMap.set(lt.id, lt);
+          }
+        }
+      }
+
+      const merged = Array.from(mergedMap.values()).sort((a, b) => a.sortOrder - b.sortOrder);
+      this.saveToLocalCache(merged);
+      return merged;
     } catch (err) {
       console.warn("Network error during task fetch, using cache:", err);
       return [...this.memoryTasks].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -133,7 +164,14 @@ export class SupabaseTaskRepository implements TaskRepository {
       return [...this.memoryTasks].sort((a, b) => a.sortOrder - b.sortOrder);
     }
 
-    // Cold start path
+    // Try reading directly from localStorage cache if memoryTasks is empty
+    this.loadFromLocalCache();
+    if (this.memoryTasks.length > 0) {
+      void this.syncFromCloud();
+      return [...this.memoryTasks].sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+
+    // Cold start path (only when local cache is completely empty)
     return this.syncFromCloud();
   }
 
@@ -207,17 +245,72 @@ export class SupabaseTaskRepository implements TaskRepository {
     return { ...newTask };
   }
 
+  async createTasks(inputs: CreateTaskInput[]): Promise<Task[]> {
+    if (inputs.length === 0) return [];
+    await this.init();
+    const now = new Date().toISOString();
+    let currentMinSort =
+      this.memoryTasks.length > 0
+        ? Math.min(...this.memoryTasks.map((t) => t.sortOrder))
+        : 0;
+
+    const newTasks: Task[] = inputs.map((input, idx) => {
+      currentMinSort -= 1;
+      return {
+        id: "task-" + Date.now() + "-" + idx + "-" + Math.random().toString(36).substring(2, 7),
+        title: input.title.trim(),
+        notes: input.notes?.trim() || undefined,
+        isCompleted: false,
+        scheduledDate: input.scheduledDate,
+        scheduledTime: input.scheduledTime,
+        durationMinutes: input.durationMinutes,
+        dueDate: input.dueDate,
+        dueTime: input.dueTime,
+        reminderDate: input.reminderDate,
+        reminderTime: input.reminderTime,
+        createdAt: now,
+        updatedAt: now,
+        sortOrder: currentMinSort,
+      };
+    });
+
+    const rows = newTasks.map((t) => this.mapTaskToRow(t));
+
+    // 1. Instant local cache & memory save (0ms local latency for all tasks)
+    const updated = [...newTasks, ...this.memoryTasks];
+    this.saveToLocalCache(updated);
+
+    // 2. Batch cloud sync in background
+    void Promise.resolve(supabase.from("tasks").insert(rows)).then(
+      ({ error }) => {
+        if (error) console.warn("Background cloud tasks batch creation warning:", error.message);
+      },
+      (err: unknown) => {
+        console.warn("Background cloud tasks batch creation network warning:", err);
+      }
+    );
+
+    return newTasks;
+  }
+
   async updateTask(id: string, input: UpdateTaskInput): Promise<Task> {
     await this.init();
-    const existing = this.memoryTasks.find((t) => t.id === id) || (await this.getTaskById(id));
+    let existing = this.memoryTasks.find((t) => t.id === id);
+    if (!existing) {
+      this.loadFromLocalCache();
+      existing = this.memoryTasks.find((t) => t.id === id);
+    }
+    if (!existing) {
+      existing = await this.getTaskById(id) || undefined;
+    }
     if (!existing) {
       throw new Error(`Task with id ${id} not found`);
     }
 
     const now = new Date().toISOString();
-    let completedAt = existing.completedAt;
+    let completedAt: string | undefined = existing.completedAt;
     if (input.isCompleted !== undefined) {
-      completedAt = input.isCompleted ? (existing.completedAt || now) : undefined;
+      completedAt = input.isCompleted ? now : undefined;
     }
 
     const updated: Task = {
@@ -229,7 +322,7 @@ export class SupabaseTaskRepository implements TaskRepository {
       updatedAt: now,
     };
 
-    // 1. Instant local cache & memory update
+    // 1. Instant local cache & memory update (0ms latency)
     const nextTasks = this.memoryTasks.map((t) => (t.id === id ? updated : t));
     this.saveToLocalCache(nextTasks);
 
@@ -255,7 +348,14 @@ export class SupabaseTaskRepository implements TaskRepository {
 
   async toggleTask(id: string): Promise<Task> {
     await this.init();
-    const existing = this.memoryTasks.find((t) => t.id === id) || (await this.getTaskById(id));
+    let existing = this.memoryTasks.find((t) => t.id === id);
+    if (!existing) {
+      this.loadFromLocalCache();
+      existing = this.memoryTasks.find((t) => t.id === id);
+    }
+    if (!existing) {
+      existing = await this.getTaskById(id) || undefined;
+    }
     if (!existing) {
       throw new Error(`Task with id ${id} not found`);
     }
@@ -267,8 +367,9 @@ export class SupabaseTaskRepository implements TaskRepository {
 
   async deleteTask(id: string): Promise<void> {
     await this.init();
+    this.pendingDeletedIds.add(id);
 
-    // 1. Instant local removal
+    // 1. Instant local removal (0ms latency)
     const nextTasks = this.memoryTasks.filter((t) => t.id !== id);
     this.saveToLocalCache(nextTasks);
 
