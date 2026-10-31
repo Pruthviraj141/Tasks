@@ -1,11 +1,16 @@
 import React, { useState } from "react";
-import { Sparkles, Shield, Smartphone, Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Sun, Moon } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../hooks/useTheme";
+import { DaymarkLogo } from "./DaymarkLogo";
 
 export const LoginScreen: React.FC = () => {
   const { signInWithGoogle } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   const handleSignIn = async () => {
     setIsLoading(true);
@@ -14,122 +19,74 @@ export const LoginScreen: React.FC = () => {
     const { error } = await signInWithGoogle();
     if (error) {
       setIsLoading(false);
-      setErrorMessage(error.message || "Unable to start Google sign in. Please try again.");
+      if (
+        error.message?.includes("provider is not enabled") ||
+        error.message?.includes("validation_failed")
+      ) {
+        setErrorMessage(
+          "Google sign-in is not yet enabled in the backend. Please check your Supabase Auth provider settings."
+        );
+      } else {
+        setErrorMessage(error.message || "Unable to start Google sign in. Please try again.");
+      }
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0C0C0E] text-[#F4F4F6] flex flex-col justify-between items-center p-6 sm:p-10 relative overflow-hidden select-none">
-      {/* Ambient background glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-gradient-to-b from-indigo-500/10 via-amber-500/8 to-transparent blur-3xl pointer-events-none" />
+    <div className="min-h-screen w-full bg-[#F8F7F3] dark:bg-[#0C0C0E] text-[#18181B] dark:text-[#F4F4F6] flex flex-col justify-between items-center p-6 relative overflow-hidden select-none transition-colors duration-300">
+      {/* Subtle ambient dawn glow behind the center in dark mode */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] h-[380px] rounded-full bg-amber-500/[0.035] dark:bg-amber-400/[0.05] blur-3xl pointer-events-none" />
 
-      {/* Top spacer */}
-      <div className="w-full flex justify-end items-center max-w-md pt-2">
-        <span className="text-[11px] font-mono tracking-widest uppercase text-zinc-600">
-          Mark Your Day
-        </span>
-      </div>
+      {/* Top Bar: Quiet Theme Switcher */}
+      <header className="w-full max-w-sm flex justify-end items-center pt-2 relative z-10">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          className="p-2.5 rounded-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+        >
+          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+      </header>
 
-      {/* Central Hero Block */}
-      <div className="w-full max-w-sm flex flex-col items-center text-center relative z-10 my-auto py-6">
-        {/* iOS-inspired Squircle Application Icon */}
-        <div className="relative mb-8 group">
-          {/* Subtle warm backlight glow */}
-          <div className="absolute -inset-2 rounded-[32px] bg-gradient-to-tr from-amber-500/25 to-indigo-500/20 blur-xl opacity-75 group-hover:opacity-100 transition duration-500" />
-
-          {/* App Squircle Container */}
-          <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-[28px] bg-gradient-to-b from-[#242430] via-[#161620] to-[#0A0A0E] p-[1.5px] shadow-2xl ring-1 ring-white/10">
-            <div className="w-full h-full rounded-[26.5px] bg-gradient-to-b from-[#1E1E28] via-[#13131A] to-[#09090D] flex items-center justify-center relative overflow-hidden">
-              {/* Inner glass highlight */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent opacity-60" />
-
-              {/* Minimalist Daymark Sun-Compass Emblem */}
-              <svg
-                className="w-12 h-12 sm:w-14 sm:h-14 text-amber-400 drop-shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
-                viewBox="0 0 48 48"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                {/* Outer delicate ring */}
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="18"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeOpacity="0.4"
-                  strokeDasharray="2 3"
-                />
-                {/* Central golden core & horizon arc */}
-                <circle cx="24" cy="24" r="6.5" fill="currentColor" fillOpacity="0.9" />
-                <path
-                  d="M12 24C12 17.3726 17.3726 12 24 12C30.6274 12 36 17.3726 36 24"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-                <circle cx="24" cy="9" r="2" fill="currentColor" />
-              </svg>
-            </div>
-          </div>
+      {/* Central Login Container */}
+      <motion.main
+        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="w-full max-w-[320px] flex flex-col items-center text-center relative z-10 my-auto py-8"
+      >
+        {/* Brand App Icon */}
+        <div className="mb-6">
+          <DaymarkLogo size={80} showGlow useImage />
         </div>
 
-        {/* Branding Title & Tagline */}
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-sans">
+        {/* Brand Header */}
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Mark Your Day
         </h1>
-        <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-[280px] leading-relaxed">
-          Design your day with intention. Simplicity, focus, and effortless daily planning.
+        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed max-w-[260px]">
+          Design your day with calm, intentional focus.
         </p>
 
-        {/* Value Highlights */}
-        <div className="w-full flex flex-col gap-2.5 my-7 px-2">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-left">
-            <div className="p-1.5 rounded-xl bg-amber-500/10 text-amber-400 shrink-0">
-              <Sparkles className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-xs text-zinc-300 font-medium">
-              Calm daily focus & productivity pulse
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-left">
-            <div className="p-1.5 rounded-xl bg-indigo-500/10 text-indigo-400 shrink-0">
-              <Shield className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-xs text-zinc-300 font-medium">
-              Private and encrypted cloud backup
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-left">
-            <div className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0">
-              <Smartphone className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-xs text-zinc-300 font-medium">
-              Seamless across web and Android
-            </span>
-          </div>
-        </div>
-
-        {/* Error notification if OAuth failed */}
+        {/* OAuth Error Feedback */}
         {errorMessage && (
-          <div className="w-full flex items-center gap-2 p-3 mb-4 text-xs bg-red-500/10 text-red-400 rounded-2xl border border-red-500/20 text-left">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="w-full flex items-start gap-2.5 p-3 mt-6 text-xs bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl border border-red-500/20 text-left leading-relaxed">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* Google Sign-In Action Button */}
-        <div className="w-full pt-1">
+        {/* Primary Action: Google Sign-In */}
+        <div className="w-full mt-7">
           <button
             type="button"
             onClick={handleSignIn}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 py-3.5 px-5 rounded-2xl bg-white text-zinc-950 font-medium text-sm hover:bg-zinc-100 active:scale-[0.98] transition-all shadow-xl shadow-black/40 disabled:opacity-60 cursor-pointer touch-manipulation"
+            className="w-full h-12 flex items-center justify-center gap-3 px-5 rounded-2xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 font-medium text-sm shadow-md active:scale-[0.98] transition-all duration-150 disabled:opacity-60 cursor-pointer"
           >
             {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-zinc-900" />
+              <Loader2 className="w-4 h-4 animate-spin text-current" />
             ) : (
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -150,19 +107,19 @@ export const LoginScreen: React.FC = () => {
                 />
               </svg>
             )}
-            <span className="font-semibold tracking-tight">
+            <span className="font-medium tracking-tight">
               {isLoading ? "Connecting to Google..." : "Continue with Google"}
             </span>
           </button>
         </div>
-      </div>
+      </motion.main>
 
-      {/* Bottom Subtle Note */}
-      <div className="w-full max-w-sm pb-2 text-center">
-        <p className="text-[11px] text-zinc-500 leading-relaxed">
-          Sign in to access your synchronized tasks across your devices.
+      {/* Subtle Footer */}
+      <footer className="w-full max-w-sm pb-3 text-center relative z-10">
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-600 tracking-tight">
+          Private & encrypted • Synced across devices
         </p>
-      </div>
+      </footer>
     </div>
   );
 };

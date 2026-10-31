@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
-import { Sun, Moon, Flame, User as UserIcon, LogOut } from "lucide-react";
+import { Sun, Moon, Flame, User as UserIcon, LogOut, Share2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { TaskFilter } from "../types/task";
 import { useTheme } from "../hooks/useTheme";
@@ -38,6 +38,7 @@ export const Header = ({
   counts,
   streakCount = 0,
   onOpenPulse,
+  onOpenShare,
 }: HeaderProps) => {
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
@@ -138,6 +139,21 @@ export const Header = ({
             </motion.div>
           </Button>
 
+          {/* Share Daily Progress & Story Card */}
+          {onOpenShare && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              onClick={onOpenShare}
+              aria-label="Share Today's Story & Card"
+              title="Share Today's Story (Story, Square, Twitter)"
+              className="size-9 min-h-[44px] min-w-[44px] rounded-xl text-[#4F46E5] dark:text-[#818CF8] bg-white/80 dark:bg-[#18181D] border-[#E6E4DC] dark:border-[#26262B] shadow-2xs hover:bg-white dark:hover:bg-[#202026] touch-manipulation"
+            >
+              <Share2 className="size-4" />
+            </Button>
+          )}
+
           {/* Google Auth / Profile Area */}
           <div className="relative" ref={profileRef}>
             {user ? (
@@ -152,7 +168,7 @@ export const Header = ({
               >
                 {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
                   <img
-                    src={user.user_metadata.avatar_url || user.user_metadata.picture}
+                    src={user.user_metadata.avatar_url || user.user_metadata?.picture}
                     alt={user.user_metadata?.full_name || "Profile"}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
@@ -169,7 +185,7 @@ export const Header = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setIsAuthModalOpen(true)}
-                aria-label="Sign in to Daymark"
+                aria-label="Sign in to Mark Your Day"
                 title="Sign in with Google"
                 className="h-9 min-h-[44px] px-2.5 rounded-xl text-xs font-medium text-[#18181B] dark:text-[#F4F4F6] bg-white/80 dark:bg-[#18181D] border-[#E6E4DC] dark:border-[#26262B] shadow-2xs hover:bg-white dark:hover:bg-[#202026] flex items-center gap-1.5 touch-manipulation"
               >
@@ -180,7 +196,7 @@ export const Header = ({
 
             {/* Profile Dropdown */}
             {isProfileOpen && user && (
-              <div className="absolute right-0 top-11 z-50 w-64 bg-card border border-border rounded-2xl p-3 shadow-xl flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 top-11 z-50 w-64 bg-card border border-border rounded-2xl p-3 shadow-xl flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center gap-3 pb-2 border-b border-border/50">
                   {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
                     <img
@@ -196,11 +212,25 @@ export const Header = ({
                   )}
                   <div className="overflow-hidden">
                     <p className="text-xs font-semibold text-foreground truncate">
-                      {user.user_metadata?.full_name || "Daymark User"}
+                      {user.user_metadata?.full_name || "Mark Your Day User"}
                     </p>
                     <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
                   </div>
                 </div>
+
+                {onOpenShare && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      onOpenShare();
+                    }}
+                    className="w-full flex items-center justify-start gap-2.5 py-2 px-3 rounded-xl text-xs font-semibold text-[#4F46E5] dark:text-[#818CF8] bg-[#EEF2FF] dark:bg-[#20202E] hover:bg-[#E0E7FF] dark:hover:bg-[#282838] transition-colors cursor-pointer"
+                  >
+                    <Share2 className="size-3.5" />
+                    <span>Share Today&apos;s Progress</span>
+                  </button>
+                )}
 
                 <button
                   type="button"

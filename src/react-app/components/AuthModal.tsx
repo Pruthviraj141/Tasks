@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { DaymarkLogo } from "./DaymarkLogo";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -46,11 +47,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {/* Brand & Title */}
         <div className="flex flex-col items-center text-center pt-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center mb-3">
-            <span className="text-xl font-bold tracking-tight text-foreground font-serif">M</span>
+          <div className="mb-3">
+            <DaymarkLogo size={52} useImage showGlow />
           </div>
           <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            Sign in to Daymark
+            Sign in to Mark Your Day
           </h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-[260px] leading-relaxed">
             Synchronize your tasks securely across web and mobile with private cloud backup.
