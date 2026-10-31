@@ -14,7 +14,7 @@ import { EmptyState } from "./components/EmptyState";
 import { FocusModeModal } from "./components/FocusModeModal";
 import { ShareCardModal } from "./components/ShareCardModal";
 import { ProductivityPulse } from "./components/ProductivityPulse";
-import { NotificationOnboardingModal } from "./components/NotificationOnboardingModal";
+import { PermissionsGateScreen } from "./components/PermissionsGateScreen";
 import { TaskMigrationModal } from "./components/TaskMigrationModal";
 import { Toaster } from "./components/ui/sonner";
 import { getTodayISODate, getTomorrowISODate, getTaskDateBucket } from "./lib/dateUtils";
@@ -22,9 +22,13 @@ import { calculateProductivityPulse } from "./lib/pulseUtils";
 import { getDailyQuote } from "./data/motivationalQuotes";
 import { getTaskRepository } from "./storage";
 import { notificationService } from "./services/notifications/NotificationService";
+import { audioRecorderService } from "./services/audio/AudioRecorderService";
 import { haptics } from "./lib/haptics";
 import { useAuth } from "./context/AuthContext";
 import { LoginScreen } from "./components/LoginScreen";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
+import { DaymarkLogo } from "./components/DaymarkLogo";
 
 export default function App() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -93,39 +97,62 @@ export default function App() {
     return () => window.removeEventListener("daymark-open-voice", handleVoiceEvent);
   }, []);
 
-  const [showNotificationOnboarding, setShowNotificationOnboarding] = useState(false);
-  const [isNotificationDenied, setIsNotificationDenied] = useState(false);
-
-  // Check notification permission once on initial launch after the screen is ready
+  // Listen for notification tap to bring up active focus session
   useEffect(() => {
-    if (isLoading) return;
-    const ONBOARDING_KEY = "daymark_notification_onboarding_shown";
-    const alreadyShown = localStorage.getItem(ONBOARDING_KEY);
-    if (alreadyShown === "true") return;
-
-    notificationService.getPermissionStatus().then((status) => {
-      if (status === "granted") {
-        localStorage.setItem(ONBOARDING_KEY, "true");
-      } else if (status === "denied") {
-        setIsNotificationDenied(true);
-        setShowNotificationOnboarding(true);
-      } else {
-        setIsNotificationDenied(false);
-        setShowNotificationOnboarding(true);
+    if (!Capacitor.isNativePlatform()) return;
+    const sub = LocalNotifications.addListener("localNotificationActionPerformed", (action) => {
+      if (action.notification.extra?.isFocusTimer) {
+        try {
+          const savedStr = localStorage.getItem("daymark_focus_session");
+          if (savedStr) {
+            const saved = JSON.parse(savedStr);
+            if (saved.taskId) {
+              const target = allTasks.find((t) => t.id === saved.taskId);
+              if (target) setFocusTask(target);
+            }
+          }
+        } catch {
+          // Ignore
+        }
       }
     });
-  }, [isLoading]);
 
-  const handleEnableNotifications = async () => {
-    localStorage.setItem("daymark_notification_onboarding_shown", "true");
-    setShowNotificationOnboarding(false);
-    await notificationService.requestPermissions();
-  };
+    return () => {
+      sub.then((handle) => handle.remove()).catch(() => {});
+    };
+  }, [allTasks]);
 
-  const handleDismissNotifications = () => {
-    localStorage.setItem("daymark_notification_onboarding_shown", "true");
-    setShowNotificationOnboarding(false);
-  };
+  const [hasPermissions, setHasPermissions] = useState<boolean | null>(() => {
+    if (typeof localStorage !== "undefined") {
+      const saved = localStorage.getItem("daymark_permissions_onboarding_completed");
+      if (saved === "true") return true;
+    }
+    return null;
+  });
+
+  // Verify both notification and microphone permissions before granting app entry
+  useEffect(() => {
+    if (!user) return;
+    let isCancelled = false;
+    async function verifyPermissions() {
+      const notifStatus = notificationService.isSupported()
+        ? await notificationService.getPermissionStatus()
+        : "granted";
+      const micStatus = await audioRecorderService.checkPermission();
+      if (!isCancelled) {
+        if (notifStatus === "granted" && micStatus) {
+          localStorage.setItem("daymark_permissions_onboarding_completed", "true");
+          setHasPermissions(true);
+        } else {
+          setHasPermissions(false);
+        }
+      }
+    }
+    verifyPermissions();
+    return () => {
+      isCancelled = true;
+    };
+  }, [user]);
 
   // Single source of truth for which day-bucket a task belongs to.
   const taskBuckets = useMemo(
@@ -382,15 +409,11 @@ export default function App() {
     touchStartYRef.current = 0;
   };
 
-  // Minimalist splash loading state while verifying initial authentication
-  if (isAuthLoading) {
+  // Minimalist splash loading state while verifying initial authentication & permissions
+  if (isAuthLoading || (user && hasPermissions === null)) {
     return (
-      <div className="min-h-screen w-full bg-[#0C0C0E] flex flex-col items-center justify-center p-6 select-none">
-        <div className="w-20 h-20 rounded-[26px] bg-gradient-to-b from-[#242430] to-[#0A0A0E] p-[1.5px] shadow-2xl ring-1 ring-white/10 flex items-center justify-center animate-pulse">
-          <div className="w-full h-full rounded-[24.5px] bg-[#121218] flex items-center justify-center">
-            <span className="text-xl font-bold tracking-tight text-amber-400 font-serif">M</span>
-          </div>
-        </div>
+      <div className="min-h-screen w-full bg-[#F8F7F3] dark:bg-[#0C0C0E] flex flex-col items-center justify-center p-6 select-none transition-colors">
+        <DaymarkLogo size={76} showGlow useImage className="animate-pulse" />
       </div>
     );
   }
@@ -398,6 +421,15 @@ export default function App() {
   // Without login, no entry to the application
   if (!user) {
     return <LoginScreen />;
+  }
+
+  // Without required permissions, do not enter the app
+  if (!hasPermissions) {
+    return (
+      <PermissionsGateScreen
+        onPermissionsGranted={() => setHasPermissions(true)}
+      />
+    );
   }
 
   return (
@@ -591,13 +623,6 @@ export default function App() {
           onOpenShare={() => setIsShareOpen(true)}
         />
 
-        {/* First-Launch Notification Permission Onboarding */}
-        <NotificationOnboardingModal
-          isOpen={showNotificationOnboarding}
-          isDenied={isNotificationDenied}
-          onEnable={handleEnableNotifications}
-          onDismiss={handleDismissNotifications}
-        />
 
         {/* First-Login Local-to-Cloud Task Migration Preview */}
         <TaskMigrationModal onMigrationComplete={refresh} />

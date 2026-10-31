@@ -5,6 +5,7 @@ import type { Task } from "../types/task";
 import { haptics } from "../lib/haptics";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { Button } from "./ui/button";
+import { notificationService } from "../services/notifications/NotificationService";
 
 interface FocusModeModalProps {
   task: Task | null;
@@ -60,6 +61,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
 
   const lastTimestampRef = useRef<number>(0);
   const timerRef = useRef<number | null>(null);
+  const lastNotifSyncRef = useRef<number>(0);
 
   const persistSession = useCallback(
     (remaining: number, running: boolean) => {
@@ -79,7 +81,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
     [task.id, durationSeconds]
   );
 
-  // Timer loop
+  // Timer loop & ongoing notification synchronization
   useEffect(() => {
     if (!isRunning) {
       if (timerRef.current) {
@@ -90,10 +92,9 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
     }
 
     lastTimestampRef.current = Date.now();
+    notificationService.updateFocusTimerNotification(task.title, remainingSeconds, true);
 
     timerRef.current = window.setInterval(() => {
-      if (typeof document !== "undefined" && document.hidden) return;
-
       const now = Date.now();
       const elapsed = Math.floor((now - lastTimestampRef.current) / 1000);
 
@@ -105,6 +106,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
             setIsRunning(false);
             setIsCompleted(true);
             haptics.taskSaved().catch(() => {});
+            notificationService.notifyFocusSessionCompleted(task.title);
             try {
               localStorage.removeItem(STORAGE_KEY);
             } catch {
@@ -113,6 +115,13 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
             return 0;
           }
           persistSession(next, true);
+
+          // Update the ongoing notification outside the app every 5 seconds
+          if (now - lastNotifSyncRef.current >= 5000) {
+            lastNotifSyncRef.current = now;
+            notificationService.updateFocusTimerNotification(task.title, next, true);
+          }
+
           return next;
         });
       }
@@ -124,14 +133,16 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
         timerRef.current = null;
       }
     };
-  }, [isRunning, persistSession]);
+  }, [isRunning, persistSession, remainingSeconds, task.title]);
 
-  // Handle visibility change (returning from lock-screen or background)
+  // Handle visibility change (updating notification on backgrounding and syncing on resume)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (typeof document === "undefined" || !isRunning) return;
 
-      if (!document.hidden && lastTimestampRef.current > 0) {
+      if (document.hidden) {
+        notificationService.updateFocusTimerNotification(task.title, remainingSeconds, true);
+      } else if (lastTimestampRef.current > 0) {
         const now = Date.now();
         const elapsed = Math.floor((now - lastTimestampRef.current) / 1000);
         lastTimestampRef.current = now;
@@ -141,9 +152,11 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
           if (next === 0) {
             setIsRunning(false);
             setIsCompleted(true);
+            notificationService.notifyFocusSessionCompleted(task.title);
             return 0;
           }
           persistSession(next, true);
+          notificationService.updateFocusTimerNotification(task.title, next, true);
           return next;
         });
       }
@@ -151,13 +164,14 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isRunning, persistSession]);
+  }, [isRunning, persistSession, remainingSeconds, task.title]);
 
   const handleTogglePlay = () => {
     haptics.selection().catch(() => {});
     if (isRunning) {
       setIsRunning(false);
       persistSession(remainingSeconds, false);
+      notificationService.updateFocusTimerNotification(task.title, remainingSeconds, false);
     } else {
       if (remainingSeconds === 0) {
         setRemainingSeconds(durationSeconds);
@@ -166,6 +180,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
       lastTimestampRef.current = Date.now();
       setIsRunning(true);
       persistSession(remainingSeconds, true);
+      notificationService.updateFocusTimerNotification(task.title, remainingSeconds, true);
     }
   };
 
@@ -175,12 +190,14 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
     setIsCompleted(false);
     setRemainingSeconds(durationSeconds);
     persistSession(durationSeconds, false);
+    notificationService.cancelFocusTimerNotification();
   };
 
   const handleFinishEarly = async () => {
     try {
       await onCompleteTask(task.id);
       haptics.taskCompleted().catch(() => {});
+      notificationService.cancelFocusTimerNotification();
       try {
         localStorage.removeItem(STORAGE_KEY);
       } catch {
@@ -193,8 +210,11 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
   };
 
   const handleExit = () => {
-    if (isRunning) {
-      persistSession(remainingSeconds, false);
+    if (!isRunning) {
+      notificationService.cancelFocusTimerNotification();
+    } else {
+      persistSession(remainingSeconds, true);
+      notificationService.updateFocusTimerNotification(task.title, remainingSeconds, true);
     }
     onClose();
   };
@@ -217,12 +237,12 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ scale: 0.94, opacity: 0, y: 16 }}
       transition={{ type: "spring", damping: 26, stiffness: 280 }}
-      className="relative w-full max-w-sm bg-[#16161C] border border-[#2A2A36] rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col items-center text-center overflow-hidden z-10"
+      className="relative w-full max-w-sm bg-white dark:bg-[#16161C] border border-[#E6E4DC] dark:border-[#2A2A36] rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col items-center text-center overflow-hidden z-10 transition-colors"
     >
       {/* Top Bar with Exit */}
       <div className="w-full flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold tracking-wider uppercase text-[#7C79F2] flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-[#7C79F2] animate-pulse" />
+        <span className="text-[11px] font-semibold tracking-wider uppercase text-[#4F46E5] dark:text-[#7C79F2] flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-[#4F46E5] dark:bg-[#7C79F2] animate-pulse" />
           Focus Mode
         </span>
 
@@ -231,7 +251,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
           variant="ghost"
           size="icon-sm"
           onClick={handleExit}
-          className="size-9 min-h-[44px] min-w-[44px] rounded-full text-[#8E8C9A] hover:bg-[#22222E] hover:text-[#F4F4F6] touch-manipulation"
+          className="size-9 min-h-[44px] min-w-[44px] rounded-full text-[#71717A] hover:bg-[#F3F1EA] hover:text-[#18181B] dark:text-[#8E8C9A] dark:hover:bg-[#22222E] dark:hover:text-[#F4F4F6] touch-manipulation"
           title="Exit Focus Mode"
         >
           <X className="size-4" />
@@ -239,10 +259,10 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
       </div>
 
       {/* Task Title */}
-      <h3 className="text-base font-semibold text-[#F4F4F6] line-clamp-2 max-w-[280px] my-1 leading-snug">
+      <h3 className="text-base font-bold text-[#18181B] dark:text-[#F4F4F6] line-clamp-2 max-w-[280px] my-1 leading-snug">
         {task.title}
       </h3>
-      <p className="text-xs text-[#8E8C9A] mb-4 sm:mb-6">
+      <p className="text-xs text-[#71717A] dark:text-[#8E8C9A] mb-4 sm:mb-6">
         {task.durationMinutes} minute dedicated session
       </p>
 
@@ -253,7 +273,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
             cx="140"
             cy="140"
             r="120"
-            className="stroke-[#22222E]"
+            className="stroke-[#E6E4DC] dark:stroke-[#22222E]"
             strokeWidth="8"
             fill="transparent"
           />
@@ -261,7 +281,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
             cx="140"
             cy="140"
             r="120"
-            className="stroke-[#7C79F2] transition-[stroke-dashoffset] duration-500 ease-linear"
+            className="stroke-[#4F46E5] dark:stroke-[#7C79F2] transition-[stroke-dashoffset] duration-500 ease-linear"
             strokeWidth="8"
             strokeDasharray="754"
             strokeDashoffset={strokeDashoffset}
@@ -271,10 +291,10 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-4xl font-mono font-bold tracking-tight text-[#F4F4F6]">
+          <span className="text-4xl font-mono font-bold tracking-tight text-[#18181B] dark:text-[#F4F4F6]">
             {formattedTime}
           </span>
-          <span className="text-xs font-medium text-[#8E8C9A] mt-1">
+          <span className="text-xs font-medium text-[#71717A] dark:text-[#8E8C9A] mt-1">
             {isCompleted ? "Session complete!" : isRunning ? "In progress" : "Paused"}
           </span>
         </div>
@@ -285,7 +305,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
         <button
           type="button"
           onClick={handleReset}
-          className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#8E8C9A] hover:text-[#F4F4F6] hover:bg-[#22222E] rounded-2xl transition-all active:scale-95 cursor-pointer touch-manipulation"
+          className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#71717A] hover:text-[#18181B] hover:bg-[#F3F1EA] dark:text-[#8E8C9A] dark:hover:text-[#F4F4F6] dark:hover:bg-[#22222E] rounded-2xl transition-all active:scale-95 cursor-pointer touch-manipulation"
           title="Reset timer"
         >
           <RotateCcw className="size-5" />
@@ -294,7 +314,7 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
         <button
           type="button"
           onClick={handleTogglePlay}
-          className="size-16 rounded-2xl bg-gradient-to-tr from-[#6865EE] to-[#8B5CF6] text-white flex items-center justify-center shadow-lg shadow-[#7C79F2]/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer touch-manipulation"
+          className="size-16 rounded-2xl bg-gradient-to-tr from-[#4F46E5] to-[#7C79F2] text-white flex items-center justify-center shadow-lg shadow-[#4F46E5]/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer touch-manipulation"
           title={isRunning ? "Pause" : "Start"}
         >
           {isRunning ? (
@@ -307,15 +327,15 @@ const FocusBody = ({ task, onClose, onCompleteTask }: FocusBodyProps) => {
         <button
           type="button"
           onClick={handleFinishEarly}
-          className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#8E8C9A] hover:text-[#10B981] hover:bg-[#10B981]/10 rounded-2xl transition-all active:scale-95 cursor-pointer touch-manipulation"
+          className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#71717A] hover:text-[#10B981] hover:bg-[#10B981]/10 dark:text-[#8E8C9A] dark:hover:text-[#10B981] dark:hover:bg-[#10B981]/10 rounded-2xl transition-all active:scale-95 cursor-pointer touch-manipulation"
           title="Mark task completed and finish"
         >
           <Check className="size-5" />
         </button>
       </div>
 
-      <div className="mt-5 text-[11px] text-[#717182] flex items-center gap-1">
-        <Sparkles className="size-3 text-[#7C79F2]" />
+      <div className="mt-5 text-[11px] text-[#71717A] dark:text-[#717182] flex items-center gap-1">
+        <Sparkles className="size-3 text-[#4F46E5] dark:text-[#7C79F2]" />
         <span>Timestamp-backed session preserves time on sleep</span>
       </div>
     </motion.div>
