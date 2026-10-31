@@ -167,6 +167,16 @@ export class SQLiteTaskRepository implements TaskRepository {
     return task;
   }
 
+  async createTasks(inputs: CreateTaskInput[]): Promise<Task[]> {
+    if (inputs.length === 0) return [];
+    const created: Task[] = [];
+    for (const input of inputs) {
+      const task = await this.createTask(input);
+      created.push(task);
+    }
+    return created;
+  }
+
   async updateTask(id: string, input: UpdateTaskInput): Promise<Task> {
     await this.init();
     if (!this.db) throw new Error("Database not connected");
@@ -175,9 +185,9 @@ export class SQLiteTaskRepository implements TaskRepository {
     if (!existing) throw new Error(`Task ${id} not found`);
 
     const now = new Date().toISOString();
-    let completedAt = existing.completedAt;
+    let completedAt: string | undefined = existing.completedAt;
     if (input.isCompleted !== undefined) {
-      completedAt = input.isCompleted ? (existing.completedAt || now) : undefined;
+      completedAt = input.isCompleted ? now : undefined;
     }
 
     const updated: Task = {

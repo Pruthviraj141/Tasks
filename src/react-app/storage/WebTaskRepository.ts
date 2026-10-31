@@ -90,6 +90,40 @@ export class WebTaskRepository implements TaskRepository {
     return { ...newTask };
   }
 
+  async createTasks(inputs: CreateTaskInput[]): Promise<Task[]> {
+    if (inputs.length === 0) return [];
+    await this.init();
+    const now = new Date().toISOString();
+    let currentMinSort =
+      this.tasks.length > 0
+        ? Math.min(...this.tasks.map((t) => t.sortOrder))
+        : 0;
+
+    const newTasks: Task[] = inputs.map((input, idx) => {
+      currentMinSort -= 1;
+      return {
+        id: "task-" + Date.now() + "-" + idx + "-" + Math.random().toString(36).substring(2, 7),
+        title: input.title.trim(),
+        notes: input.notes?.trim() || undefined,
+        isCompleted: false,
+        scheduledDate: input.scheduledDate,
+        scheduledTime: input.scheduledTime,
+        durationMinutes: input.durationMinutes,
+        dueDate: input.dueDate,
+        dueTime: input.dueTime,
+        reminderDate: input.reminderDate,
+        reminderTime: input.reminderTime,
+        createdAt: now,
+        updatedAt: now,
+        sortOrder: currentMinSort,
+      };
+    });
+
+    this.tasks.unshift(...newTasks);
+    this.save();
+    return newTasks;
+  }
+
   async updateTask(id: string, input: UpdateTaskInput): Promise<Task> {
     await this.init();
     const index = this.tasks.findIndex((t) => t.id === id);
@@ -100,9 +134,9 @@ export class WebTaskRepository implements TaskRepository {
     const current = this.tasks[index];
     const now = new Date().toISOString();
 
-    let completedAt = current.completedAt;
+    let completedAt: string | undefined = current.completedAt;
     if (input.isCompleted !== undefined) {
-      completedAt = input.isCompleted ? (current.completedAt || now) : undefined;
+      completedAt = input.isCompleted ? now : undefined;
     }
 
     const updated: Task = {
